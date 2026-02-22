@@ -1,16 +1,11 @@
 {
   "manifest_version": 3,
   "name": "SkipHostel-Wifi",
-  "version": "1.0",
-  "permissions": [
-    "tabs",
-    "scripting",
-    "storage"
-  ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
-  "action": {
-    "default_popup": "popup.html"
-  }
-} 
+  "version": "1.1",
+  "permissions": ["tabs", "scripting", "storage", "alarms"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": { "default_popup": "popup.html" }
+}
