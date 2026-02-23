@@ -1,16 +1,43 @@
 // Shared login logic for popup and background (Cyberoam/Sophos portal).
 // Attaches to self (worker) or window (popup) so both can use doLogin(uid).
 (function (global) {
-  const LOGIN_BASE = "http://192.168.0.66:8090/";
-  const POST_URL = "http://192.168.0.66:8090/login.xml";
+  const DEFAULT_IP = "192.168.0.66";
+  const PORT = "8090";
+
+  function getConfiguredIp() {
+    return new Promise((resolve) => {
+      try {
+        if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+          chrome.storage.local.get("targetIP", (data) => {
+            const ip = data && data.targetIP ? data.targetIP : DEFAULT_IP;
+            resolve(ip);
+          });
+        } else {
+          resolve(DEFAULT_IP);
+        }
+      } catch (_e) {
+        resolve(DEFAULT_IP);
+      }
+    });
+  }
+
+  async function getLoginUrls() {
+    const ip = await getConfiguredIp();
+    const base = `http://${ip}:${PORT}/`;
+    return {
+      loginBase: base,
+      postUrl: `${base}login.xml`
+    };
+  }
 
   async function doLogin(userId) {
     if (!userId || !userId.trim()) {
       return { ok: false, message: "No UID" };
     }
     const uid = userId.trim();
+    const { loginBase, postUrl } = await getLoginUrls();
 
-    const response = await fetch(LOGIN_BASE);
+    const response = await fetch(loginBase);
     if (!response.ok) {
       return { ok: false, message: "Fetch failed: " + response.status };
     }
@@ -49,7 +76,7 @@
     if (!foundUser) formData.append("username", uid);
     if (!foundPass) formData.append("password", uid);
 
-    const loginResponse = await fetch(POST_URL, {
+    const loginResponse = await fetch(postUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: formData

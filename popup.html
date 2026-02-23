@@ -13,7 +13,11 @@
   <div id="popup-root">
 
     <div class="container">
-      <h1>SkipHostelWifi</h1>
+      <div class="header-row">
+        <button id="theme-toggle" class="icon-button" title="Toggle theme">🌙</button>
+        <h1>SkipHostelWifi</h1>
+        <button id="settings-btn" class="icon-button" title="Settings">⚙</button>
+      </div>
       <div class="subtitle">WiFi Connection Assistant</div>
 
       <div class="input-wrapper">
@@ -22,6 +26,14 @@
 
       <button id="submit"><span>Connect</span></button>
       <p id="output"></p>
+
+      <div id="settings-panel" class="settings-panel hidden">
+        <div class="settings-title">Connection settings</div>
+        <div class="input-wrapper">
+          <input id="target-ip" type="text" placeholder="192.168.0.66" autocomplete="off">
+        </div>
+        <button id="save-ip" class="small-button"><span>Save IP</span></button>
+      </div>
     </div>
 
     <!-- spacer that forces height -->
