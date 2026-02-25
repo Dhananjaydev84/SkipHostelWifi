@@ -4,6 +4,22 @@
   const DEFAULT_IP = "192.168.0.66";
   const PORT = "8090";
 
+  function getAttr(tag, attrName) {
+    const re = new RegExp(`${attrName}\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, "i");
+    const m = tag.match(re);
+    return (m && (m[2] || m[3] || m[4])) ? (m[2] || m[3] || m[4]) : "";
+  }
+
+  function parseInputsFromHtml(html) {
+    const tags = html.match(/<input\b[^>]*>/gi) || [];
+    return tags.map((tag) => ({
+      name: getAttr(tag, "name"),
+      id: getAttr(tag, "id"),
+      type: (getAttr(tag, "type") || "text").toLowerCase(),
+      value: getAttr(tag, "value")
+    }));
+  }
+
   function getConfiguredIp() {
     return new Promise((resolve) => {
       try {
@@ -37,17 +53,30 @@
     const uid = userId.trim();
     const { loginBase, postUrl } = await getLoginUrls();
 
-    const response = await fetch(loginBase);
+    const response = await fetch(loginBase, { credentials: "include" });
     if (!response.ok) {
       return { ok: false, message: "Fetch failed: " + response.status };
     }
 
     const text = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, "text/html");
-    const inputs = doc.querySelectorAll("input");
-    if (inputs.length === 0) {
-      return { ok: false, message: "No form inputs" };
+
+    let inputs = [];
+    try {
+      if (typeof DOMParser !== "undefined") {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, "text/html");
+        inputs = Array.from(doc.querySelectorAll("input")).map((i) => ({
+          name: i.name || "",
+          id: i.id || "",
+          type: (i.type || "text").toLowerCase(),
+          value: i.value || ""
+        }));
+      } else {
+        // Service worker-safe HTML parsing fallback
+        inputs = parseInputsFromHtml(text);
+      }
+    } catch (_e) {
+      inputs = parseInputsFromHtml(text);
     }
 
     const formData = new URLSearchParams();
@@ -70,15 +99,16 @@
       }
     });
 
-    if (text.includes("Cyberoam") || text.includes("Sophos")) {
-      if (!formData.has("mode")) formData.append("mode", "191");
-    }
+    // Cyberoam/Sophos commonly uses mode=191. Even if portal branding isn't present,
+    // it's safe to add when missing.
+    if (!formData.has("mode")) formData.append("mode", "191");
     if (!foundUser) formData.append("username", uid);
     if (!foundPass) formData.append("password", uid);
 
     const loginResponse = await fetch(postUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      credentials: "include",
       body: formData
     });
 
