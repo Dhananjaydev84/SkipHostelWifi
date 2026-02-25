@@ -84,11 +84,7 @@ document.getElementById("submit").onclick = async () => {
     if (result.ok) {
       output.innerText = result.message === "Connected" ? "Connected successfully!" : "Command sent (check access).";
       // Start background keep-alive so the session never expires (re-auth every 5 min).
-      chrome.runtime.sendMessage({ action: "startKeepAlive" }, (r) => {
-        if (r && r.started) {
-          output.innerText += " Keep-alive on.";
-        }
-      });
+      chrome.runtime.sendMessage({ action: "startKeepAlive" }, () => {});
     } else {
       if (result.message === "Data limit reached") {
         output.innerText = "Login Failed: Data limit reached.";
