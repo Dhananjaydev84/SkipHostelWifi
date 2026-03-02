@@ -2,8 +2,21 @@
   font-family: "Rubik", system-ui, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-  color: #1a1f2a;
-  background-color: #f4f6fb;
+  --main-bg: #0d0f14;
+  --main-card-bg: #171b22;
+  --main-card-border: #262e3b;
+  --main-text: #f2f4f8;
+  --main-muted: #a9b2c1;
+  --main-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+}
+
+:root.light-theme {
+  --main-bg: #f4f6fb;
+  --main-card-bg: #ffffff;
+  --main-card-border: #e2e7f0;
+  --main-text: #161c25;
+  --main-muted: #5f6c7c;
+  --main-shadow: 0 16px 40px rgba(25, 35, 55, 0.1);
 }
 
 body {
@@ -11,15 +24,16 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: #f4f6fb;
+  background: var(--main-bg);
+  color: var(--main-text);
 }
 
 .vite-note {
   padding: 32px 36px;
   border-radius: 16px;
-  border: 1px solid #e2e7f0;
-  background: #ffffff;
-  box-shadow: 0 16px 40px rgba(25, 35, 55, 0.1);
+  border: 1px solid var(--main-card-border);
+  background: var(--main-card-bg);
+  box-shadow: var(--main-shadow);
   text-align: center;
 }
 
@@ -30,5 +44,5 @@ body {
 
 .vite-note p {
   margin: 0;
-  color: #5f6c7c;
+  color: var(--main-muted);
 }

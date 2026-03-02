@@ -2,6 +2,18 @@
 // Load saved UID, IP, and theme when popup opens
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
+  const setTheme = (theme) => {
+    const isLight = theme === "light";
+    document.documentElement.classList.toggle("light-theme", isLight);
+    const themeToggle = document.getElementById("theme-toggle");
+    if (themeToggle) themeToggle.checked = isLight;
+    try {
+      localStorage.setItem("theme", theme);
+    } catch (_e) {
+      // Ignore localStorage sync issues in restricted contexts.
+    }
+  };
+
   chrome.storage.local.get(
     ["savedUID", "targetIP", "theme", "keepAliveActive"],
     (data) => {
@@ -13,15 +25,15 @@ document.addEventListener("DOMContentLoaded", () => {
       ipInput.value = data.targetIP || "192.168.0.66";
     }
 
-    const theme = data.theme || "dark";
-    const themeToggle = document.getElementById("theme-toggle");
-    if (theme === "light") {
-      document.documentElement.classList.add("light-theme");
-      if (themeToggle) themeToggle.checked = true;
-    } else {
-      document.documentElement.classList.remove("light-theme");
-      if (themeToggle) themeToggle.checked = false;
-    }
+    const cachedTheme = (() => {
+      try {
+        return localStorage.getItem("theme");
+      } catch (_e) {
+        return null;
+      }
+    })();
+    const theme = data.theme || cachedTheme || "dark";
+    setTheme(theme);
     const keepActiveNote = document.getElementById("keep-active-status");
     if (keepActiveNote) {
       keepActiveNote.textContent = "";
@@ -94,8 +106,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (themeToggle) {
     themeToggle.addEventListener("change", () => {
       const isLight = themeToggle.checked;
-      document.documentElement.classList.toggle("light-theme", isLight);
       const nextTheme = isLight ? "light" : "dark";
+      setTheme(nextTheme);
       chrome.storage.local.set({ theme: nextTheme });
     });
   }
@@ -107,6 +119,17 @@ document.addEventListener("DOMContentLoaded", () => {
 document.getElementById("submit").onclick = async () => {
   const userId = document.getElementById("uid").value.trim();
   const output = document.getElementById("output");
+  const keepActiveNote = document.getElementById("keep-active-status");
+  const showKeepActiveStatus = (message) => {
+    if (!keepActiveNote) return;
+    keepActiveNote.textContent = message;
+    keepActiveNote.classList.add("visible");
+  };
+  const clearKeepActiveStatus = () => {
+    if (!keepActiveNote) return;
+    keepActiveNote.textContent = "";
+    keepActiveNote.classList.remove("visible");
+  };
 
   // Validation
   if (userId === "") {
@@ -118,11 +141,14 @@ document.getElementById("submit").onclick = async () => {
   chrome.storage.local.set({ savedUID: userId });
 
   output.innerText = "Connecting...";
+  clearKeepActiveStatus();
 
   try {
     const result = await doLogin(userId);
+    const message = result && result.message ? String(result.message) : "";
+    const isFetchError = message.toLowerCase().includes("fetch");
 
-    if (result.ok) {
+    if (result && result.ok) {
       output.innerText = "Connected";
       // Start background keep-alive so the session never expires (re-auth every 5 min).
       chrome.runtime.sendMessage({ action: "startKeepAlive" }, (response) => {
@@ -131,23 +157,21 @@ document.getElementById("submit").onclick = async () => {
           return;
         }
         if (response && response.started) {
-          const keepActiveNote = document.getElementById("keep-active-status");
-          if (keepActiveNote) {
-            keepActiveNote.textContent = "Keep active initialised";
-            keepActiveNote.classList.add("visible");
-          }
+          showKeepActiveStatus("Keep active initialised");
         }
       });
     } else {
-      if (result.message && result.message.toLowerCase().includes("fetch")) {
-        output.innerText = "Error: failed to fetch";
+      if (isFetchError) {
+        output.innerText = "Error";
+        showKeepActiveStatus("Failed to fetch. Please check connection status and try again");
       } else {
-        output.innerText = "Error: " + result.message;
+        output.innerText = "Error: " + message;
       }
     }
   } catch (err) {
     console.error(err);
-    output.innerText = "Error: failed to fetch";
+    output.innerText = "Error";
+    showKeepActiveStatus("Failed to fetch. Please check connection status and try again");
   }
 };
 //  github version

@@ -19,6 +19,10 @@
   --button-text: #0b0d14;
   --status-bg: #11161e;
   --status-border: #263043;
+  --settings-panel-border: rgba(136, 148, 171, 0.45);
+  --settings-panel-bg: radial-gradient(circle at top, rgba(15, 22, 35, 0.98), rgba(8, 11, 18, 0.98));
+  --settings-panel-shadow: 0 14px 35px rgba(0, 0, 0, 0.7);
+  --secondary-btn-bg: rgba(255, 255, 255, 0.04);
   --shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
 }
 
@@ -41,6 +45,10 @@
   --button-text: #f6f7ff;
   --status-bg: #eef2fb;
   --status-border: #dae2f2;
+  --settings-panel-border: #d7deea;
+  --settings-panel-bg: linear-gradient(160deg, #ffffff, #f2f6fd);
+  --settings-panel-shadow: 0 14px 35px rgba(31, 45, 61, 0.16);
+  --secondary-btn-bg: #f3f6fc;
   --shadow: 0 18px 45px rgba(31, 45, 61, 0.15);
 }
 
@@ -296,9 +304,9 @@ input::placeholder {
   width: 190px;
   padding: 10px 12px 12px;
   border-radius: 14px;
-  border: 1px solid rgba(136, 148, 171, 0.45);
-  background: radial-gradient(circle at top, rgba(15, 22, 35, 0.98), rgba(8, 11, 18, 0.98));
-  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--settings-panel-border);
+  background: var(--settings-panel-bg);
+  box-shadow: var(--settings-panel-shadow);
   z-index: 10;
   opacity: 1;
   transform: translateY(0);
@@ -354,7 +362,7 @@ input::placeholder {
 }
 
 .btn-compact.secondary {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--secondary-btn-bg);
   border: 1px solid var(--card-border);
   color: var(--muted);
 }
