@@ -4,54 +4,74 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="style3.css">
-
-<!-- Currently using stlye2.css -->
- 
-  <title>Document</title>
+  <title>SkipHostelWifi</title>
 </head>
 <body>
-  <div id="popup-root">
+  <div id="popup-root" class="app">
+    <main class="card">
+      <header class="top-bar">
+        <label class="theme-switch" title="Toggle theme">
+          <input id="theme-toggle" type="checkbox" aria-label="Toggle theme">
+          <span class="switch-track">
+            <span class="switch-thumb"></span>
+          </span>
+        </label>
 
-    <div class="container">
-      <div class="header-row">
-        <button id="theme-toggle" class="icon-button" title="Toggle theme">🌙</button>
-        <h1>SkipHostelWifi</h1>
-        <button id="settings-btn" class="icon-button" title="Settings">⚙</button>
-      </div>
-      <div class="subtitle">WiFi Connection Assistant</div>
-
-      <div class="input-wrapper">
-        <input id="uid" type="text" placeholder="Enter User ID" autocomplete="off">
-      </div>
-
-      <button id="submit"><span>Connect</span></button>
-      <p id="output"></p>
-
-      <div id="settings-panel" class="settings-panel hidden">
-        <div class="settings-title">Connection settings</div>
-        <div class="input-wrapper">
-          <input id="target-ip" type="text" placeholder="192.168.0.66" autocomplete="off">
+        <div class="brand">
+          <div class="title">SkipHostelWifi</div>
+          <div class="subtitle">WiFi Connection Assistant</div>
         </div>
-        <button id="save-ip" class="small-button"><span>Save IP</span></button>
-      </div>
-    </div>
 
-    <!-- spacer that forces height -->
-    <!-- <div style="height: 40px;"></div> -->
+        <button id="settings-btn" class="icon-button" type="button" title="Settings" aria-label="Open settings">
+          <span class="icon" aria-hidden="true">&#9881;</span>
+        </button>
+      </header>
 
-    <!-- <p class="credits">Built by person1 &Person2longname</p> -->
+      <section class="content">
+        <label class="field">
+          <span class="label">User ID</span>
+          <input id="uid" type="text" placeholder="Enter User ID" autocomplete="off">
+        </label>
 
+        <button id="submit" class="primary" type="button"><span>Connect</span></button>
+        <div id="output" class="status"></div>
+        <div id="keep-active-status" class="keep-active-note"></div>
+      </section>
+
+      <aside id="settings-panel" class="settings-panel hidden" aria-hidden="true">
+        <div class="settings-title">Settings</div>
+        <label class="field">
+          <span class="label">Target IP</span>
+          <input
+            id="target-ip"
+            type="text"
+            placeholder="192.168.0.66"
+            autocomplete="off"
+          >
+        </label>
+        <div class="settings-actions">
+          <button id="save-ip" class="btn-compact primary" type="button">
+            <span>Save IP</span>
+          </button>
+          <button id="reset-ip" class="btn-compact secondary" type="button">
+            <span>Reset IP</span>
+          </button>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <span class="footer-text">Built by</span>
+      <a href="https://www.linkedin.com/in/dhananjay-dev-204b72292/" target="_blank" rel="noreferrer">Dhananjay Dev</a>
+      <span class="footer-text">&amp; </span>
+      <a href="https://www.linkedin.com/in/arjun-satheesh-382377390/" target="_blank" rel="noreferrer">Arjun Sateesh</a>
+      <span class="sep">&bull;</span>
+      <a href="https://github.com/Dhananjaydev84/SkipHostelWifi" target="_blank" rel="noreferrer">GitHub</a>
+      <span class="sep">&bull;</span>
+      <span class="footer-text">v1.1</span>
+    </footer>
   </div>
   <script src="auth.js"></script>
   <script src="script.js"></script>
 </body>
-
-  <footer class="footer">
-    <span class="built-by">Built by Dhananjay dev & Arjun Sateesh </span>
-    <span class="sep">•</span>
-    <a href="https://github.com/Dhananjaydev84/wifi-automation" target="_blank">GitHub</a>
-    <span class="sep">•</span>
-    <span class="version">v1.0</span>
-  </footer>
-
 </html>

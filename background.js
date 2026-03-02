@@ -17,6 +17,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         delayInMinutes: KEEP_ALIVE_MINUTES
       });
 
+      chrome.storage.local.set({ keepAliveActive: true });
+
       // Run one refresh immediately so user doesn't wait for the first alarm.
       try {
         const result = await self.doLogin(data.savedUID);
@@ -29,6 +31,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   if (msg.action === "stopKeepAlive") {
     chrome.alarms.clear(ALARM_NAME);
+    chrome.storage.local.set({ keepAliveActive: false });
     sendResponse({ stopped: true });
     return false;
   }
