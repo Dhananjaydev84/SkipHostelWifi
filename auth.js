@@ -127,7 +127,6 @@
       }
       return { ok: true, message: "Command sent" };
     } catch (error) {
-      console.error("doLogin failed:", error);
       return { ok: false, message: "Fetch failed" };
     }
   }
