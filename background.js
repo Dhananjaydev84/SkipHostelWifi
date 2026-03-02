@@ -1,8 +1,25 @@
 // Keep-alive: re-authenticate with the portal every 5 minutes so the session never expires.
 importScripts("auth.js");
 
-const ALARM_NAME = "wifiKeepAlive";
+const ALARM_NAME = "reauthWifi";
 const KEEP_ALIVE_MINUTES = 4;
+
+async function ensureAlarm() {
+  const existing = await chrome.alarms.get(ALARM_NAME);
+  if (!existing) {
+    chrome.alarms.create(ALARM_NAME, {
+      periodInMinutes: KEEP_ALIVE_MINUTES
+    });
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  ensureAlarm();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  ensureAlarm();
+});
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === "startKeepAlive") {
@@ -12,10 +29,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         return;
       }
 
-      chrome.alarms.create(ALARM_NAME, {
-        periodInMinutes: KEEP_ALIVE_MINUTES,
-        delayInMinutes: KEEP_ALIVE_MINUTES
-      });
+      await ensureAlarm();
 
       chrome.storage.local.set({ keepAliveActive: true });
 
