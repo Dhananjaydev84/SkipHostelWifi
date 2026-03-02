@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Test-SkipHostel-Wifi",
+  "name": "SkipHostel-Wifi",
   "version": "1.1",
   "permissions": ["tabs", "scripting", "storage", "alarms"],
   "host_permissions": ["<all_urls>"],
