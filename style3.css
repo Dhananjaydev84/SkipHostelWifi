@@ -192,6 +192,12 @@ body {
   font-size: 16px;
 }
 
+#settings-btn {
+  position: relative;
+  top: 1px;
+  right: 1px;
+}
+
 .content {
   display: flex;
   flex-direction: column;

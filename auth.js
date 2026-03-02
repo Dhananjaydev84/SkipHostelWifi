@@ -1,6 +1,4 @@
 // Shared login logic for popup and background (Cyberoam/Sophos portal).
-// Attaches to self (worker) or window (popup) so both can use doLogin(uid).
-(function (global) {
   const DEFAULT_IP = "192.168.0.66";
   const PORT = "8090";
 
@@ -134,5 +132,3 @@
     }
   }
 
-  (global.self || global.window || global).doLogin = doLogin;
-})(typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : this);

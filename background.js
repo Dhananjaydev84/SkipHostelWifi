@@ -35,7 +35,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
       // Run one refresh immediately so user doesn't wait for the first alarm.
       try {
-        const result = await self.doLogin(data.savedUID);
+        const result = await doLogin(data.savedUID);
         sendResponse({ started: true, refreshed: result.ok, message: result.message });
       } catch (e) {
         sendResponse({ started: true, refreshed: false, message: e.message });
@@ -56,7 +56,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   const { savedUID } = await chrome.storage.local.get("savedUID");
   if (!savedUID) return;
   try {
-    const result = await self.doLogin(savedUID);
+    const result = await doLogin(savedUID);
     if (result.ok) {
       console.log("[SkipHostelWifi] Keep-alive OK");
     } else {
