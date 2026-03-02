@@ -34,12 +34,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       chrome.storage.local.set({ keepAliveActive: true });
 
       // Run one refresh immediately so user doesn't wait for the first alarm.
-      try {
-        const result = await doLogin(data.savedUID);
-        sendResponse({ started: true, refreshed: result.ok, message: result.message });
-      } catch (e) {
-        sendResponse({ started: true, refreshed: false, message: e.message });
-      }
+      const result = await doLogin(data.savedUID);
+      sendResponse({ started: true, refreshed: result.ok, message: result.message });
     });
     return true;
   }
@@ -55,14 +51,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== ALARM_NAME) return;
   const { savedUID } = await chrome.storage.local.get("savedUID");
   if (!savedUID) return;
-  try {
-    const result = await doLogin(savedUID);
-    if (result.ok) {
-      console.log("[SkipHostelWifi] Keep-alive OK");
-    } else {
-      console.warn("[SkipHostelWifi] Keep-alive:", result.message);
-    }
-  } catch (e) {
-    console.warn("[SkipHostelWifi] Keep-alive error:", e.message);
+  const result = await doLogin(savedUID);
+  if (result.ok) {
+    console.log("[SkipHostelWifi] Keep-alive OK");
+  } else {
+    console.warn("[SkipHostelWifi] Keep-alive:", result.message);
   }
 });
