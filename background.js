@@ -67,3 +67,18 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
   }
 });
+
+chrome.idle.onStateChanged.addListener(async (state) => {
+  if (state === "active") {
+    const { savedUID, keepAliveActive } = await chrome.storage.local.get(["savedUID", "keepAliveActive"]);
+    if (savedUID && keepAliveActive) {
+      console.log("[SkipHostelWifi] System woke up. Triggering re-authentication...");
+      const result = await doLogin(savedUID);
+      if (result.ok) {
+        console.log("[SkipHostelWifi] Wake-up re-authentication successful");
+      } else {
+        console.warn("[SkipHostelWifi] Wake-up re-authentication failed:", result.message);
+      }
+    }
+  }
+});
