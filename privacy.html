@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - SkipHostelWifi</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: #f9f9f9;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #222; border-bottom: 2px solid #eee; padding-bottom: 0.5rem; }
+        h2 { color: #444; margin-top: 2rem; }
+        p { margin-bottom: 1rem; }
+        .highlight { background: #e7f3ff; padding: 0.2rem 0.4rem; border-radius: 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Privacy Policy for SkipHostelWifi</h1>
+        <p>Last updated: March 03, 2026</p>
+
+        <p>SkipHostelWifi ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how our Chrome extension handles information.</p>
+
+        <h2>1. Information Collection</h2>
+        <p>SkipHostelWifi is designed to be a private, local-first utility. We collect the following information:</p>
+        <ul>
+            <li><span class="highlight">User ID</span>: Used solely for authenticating with your local hostel WiFi portal.</li>
+        </ul>
+
+        <h2>2. Data Storage</h2>
+        <p>All data collected (your User ID and preferred Target IP) is stored <strong>locally on your device</strong> using the <code>chrome.storage.local</code> API. We do not maintain any central servers for your data.</p>
+
+        <h2>3. Data Transmission</h2>
+        <p>The extension only transmits your User ID to the <strong>local WiFi portal</strong> (e.g., Sophos/Cyberoam) configured in the settings. No data is transmitted to us or any third-party analytics services.</p>
+
+        <h2>4. Permissions</h2>
+        <p>The extension requires the following permissions:</p>
+        <ul>
+            <li><code>storage</code>: To save your User ID locally.</li>
+            <li><code>alarms</code>: To handle background re-authentication (keep-alive).</li>
+            <li><code>scripting</code> & <code>tabs</code>: To facilitate the login process.</li>
+            <li><code>host_permissions</code>: Limited to your local network gateway for authentication.</li>
+        </ul>
+
+        <h2>5. Changes to This Policy</h2>
+        <p>We may update our Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page.</p>
+
+        <h2>6. Contact Us</h2>
+        <p>If you have any questions about this Privacy Policy, you can contact the developers via our <a href="https://github.com/Dhananjaydev84/SkipHostelWifi" target="_blank">GitHub repository</a>.</p>
+    </div>
+</body>
+</html>
