@@ -331,6 +331,10 @@ input::placeholder {
   pointer-events: none;
 }
 
+.hidden {
+  display: none !important;
+}
+
 .settings-title {
   font-size: 12px;
   font-weight: 600;
