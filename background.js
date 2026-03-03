@@ -51,10 +51,19 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== ALARM_NAME) return;
   const { savedUID } = await chrome.storage.local.get("savedUID");
   if (!savedUID) return;
-  const result = await doLogin(savedUID);
-  if (result.ok) {
-    console.log("[SkipHostelWifi] Keep-alive OK");
+
+  console.log("[SkipHostelWifi] Running keep-alive heartbeat...");
+  const status = await sendHeartbeat();
+
+  if (status.ok) {
+    console.log("[SkipHostelWifi] Heartbeat OK: Session still live");
   } else {
-    console.warn("[SkipHostelWifi] Keep-alive:", result.message);
+    console.warn("[SkipHostelWifi] Heartbeat failed:", status.message, ". Attempting full re-login...");
+    const result = await doLogin(savedUID);
+    if (result.ok) {
+      console.log("[SkipHostelWifi] Re-login successful");
+    } else {
+      console.error("[SkipHostelWifi] Re-login failed:", result.message);
+    }
   }
 });
