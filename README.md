@@ -42,7 +42,6 @@ This project does **not** collect, access, or transmit your credentials anywhere
 
 ##  Future Plans
 
-* Support for Ladies Hostel network
 * Editable portal address
 * Improved connection reliability
 * UI improvements
