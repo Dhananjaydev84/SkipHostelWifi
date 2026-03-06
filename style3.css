@@ -244,16 +244,19 @@ input {
   font-weight: 500;
   font-family: 'Rubik', sans-serif;
   transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+  text-align: center;
 }
 
 input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(111, 123, 255, 0.2);
+  text-align: center;
 }
 
 input::placeholder {
   color: rgba(169, 178, 193, 0.7);
+  text-align: center;
 }
 
 .primary {
