@@ -2,9 +2,36 @@
 // Load saved UID, IP, and theme when popup opens
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
+  const LOGO_SOURCES = {
+    light: "images/Main logo2 dark.png",
+    dark: "images/Main logo2.png"
+  };
+
+  const applyThemeLogo = (theme) => {
+    const logo = document.querySelector(".title-logo");
+    if (!logo) return;
+
+    const nextSrc = theme === "light" ? LOGO_SOURCES.light : LOGO_SOURCES.dark;
+    if (nextSrc && logo.getAttribute("src") !== nextSrc) {
+      logo.setAttribute("src", nextSrc);
+    }
+  };
+
+  const syncLogoWidthToSubtitle = () => {
+    const subtitle = document.querySelector(".brand .subtitle");
+    const logo = document.querySelector(".title-logo");
+    const brand = document.querySelector(".brand");
+    if (!subtitle || !logo || !brand) return;
+
+    const targetWidth = Math.ceil(subtitle.getBoundingClientRect().width + 8);
+    const maxSafeWidth = Math.floor(brand.getBoundingClientRect().width);
+    logo.style.width = `${Math.min(targetWidth, maxSafeWidth)}px`;
+  };
+
   const setTheme = (theme) => {
     const isLight = theme === "light";
     document.documentElement.classList.toggle("light-theme", isLight);
+    applyThemeLogo(theme);
     const themeToggle = document.getElementById("theme-toggle");
     if (themeToggle) themeToggle.checked = isLight;
     try {
@@ -34,6 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
       })();
       const theme = data.theme || cachedTheme || "dark";
       setTheme(theme);
+      syncLogoWidthToSubtitle();
 
       // UI state based on keepAliveActive
       const submitBtn = document.getElementById("submit");
@@ -121,8 +149,16 @@ document.addEventListener("DOMContentLoaded", () => {
       const nextTheme = isLight ? "light" : "dark";
       setTheme(nextTheme);
       chrome.storage.local.set({ theme: nextTheme });
+      syncLogoWidthToSubtitle();
     });
   }
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(syncLogoWidthToSubtitle);
+  } else {
+    setTimeout(syncLogoWidthToSubtitle, 0);
+  }
+  window.addEventListener("resize", syncLogoWidthToSubtitle);
 });
 
 // ================================

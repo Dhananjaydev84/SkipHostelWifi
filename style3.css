@@ -129,10 +129,12 @@ body {
 }
 
 .title-logo {
-  width: 350px;
+  width: auto;
   max-width: 100%;
   height: auto;
   display: block;
+  transform: scale(1.16);
+  transform-origin: center;
 }
 
 .subtitle {
