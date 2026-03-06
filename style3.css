@@ -131,10 +131,11 @@ body {
 }
 
 .subtitle {
-  font-size: 15px;
+  font-size: 13px;
   color: var(--muted);
   margin-top: 2px;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
 }
 
 .theme-switch {
