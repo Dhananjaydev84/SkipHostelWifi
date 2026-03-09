@@ -198,8 +198,7 @@ document.getElementById("submit").onclick = async () => {
 
     if (result && result.ok) {
       output.innerText = "Connected";
-      // Start background keep-alive so the session never expires (re-auth every 5 min).
-      chrome.runtime.sendMessage({ action: "startKeepAlive" }, (response) => {
+      chrome.runtime.sendMessage({ action: "startKeepAlive", savedUID: userId }, (response) => {
         if (chrome.runtime.lastError) {
           console.warn("Failed to start keep-alive:", chrome.runtime.lastError.message);
           return;

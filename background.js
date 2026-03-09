@@ -1,84 +1,256 @@
-// Keep-alive: re-authenticate with the portal every 5 minutes so the session never expires.
 importScripts("auth.js");
 
-const ALARM_NAME = "reauthWifi";
-const KEEP_ALIVE_MINUTES = 4;
+const SESSION_ALARM = "sessionCheck";
+const RETRY_ALARM = "sessionRetry";
+const PERIOD_MINUTES = 4;
+const STARTUP_STALE_MS = 2 * PERIOD_MINUTES * 60 * 1000;
+const WAKE_STALE_MS = 90 * 1000;
+const FAILURE_BACKOFF_MINUTES = [1, 2, 4, 8];
 
-async function ensureAlarm() {
-  const existing = await chrome.alarms.get(ALARM_NAME);
-  if (!existing) {
-    chrome.alarms.create(ALARM_NAME, {
-      periodInMinutes: KEEP_ALIVE_MINUTES
-    });
+let runLock = Promise.resolve();
+
+function log(level, message, details) {
+  const prefix = "[SkipHostelWifi]";
+  if (details === undefined) {
+    console[level](`${prefix} ${message}`);
+    return;
   }
+  console[level](`${prefix} ${message}`, details);
+}
+
+function withRunLock(task) {
+  const nextRun = runLock.then(task, task);
+  runLock = nextRun.catch(() => {});
+  return nextRun;
+}
+
+async function getState() {
+  return chrome.storage.local.get([
+    "savedUID",
+    "keepAliveActive",
+    "lastCheckAt",
+    "lastAuthAt",
+    "lastSuccessAt",
+    "lastFailureAt",
+    "consecutiveFailures",
+    "lastOutcome",
+    "lastReason"
+  ]);
+}
+
+async function setState(patch) {
+  await chrome.storage.local.set(patch);
+}
+
+async function clearRetryAlarm() {
+  await chrome.alarms.clear(RETRY_ALARM);
+}
+
+async function syncAlarms() {
+  const { keepAliveActive } = await chrome.storage.local.get("keepAliveActive");
+  const periodicAlarm = await chrome.alarms.get(SESSION_ALARM);
+
+  if (keepAliveActive) {
+    if (!periodicAlarm) {
+      log("log", "Creating periodic session alarm", { periodInMinutes: PERIOD_MINUTES });
+      chrome.alarms.create(SESSION_ALARM, {
+        periodInMinutes: PERIOD_MINUTES
+      });
+    } else {
+      log("log", "Periodic session alarm already present");
+    }
+    return;
+  }
+
+  if (periodicAlarm) {
+    log("log", "Clearing periodic session alarm");
+    await chrome.alarms.clear(SESSION_ALARM);
+  }
+  log("log", "Clearing retry alarm");
+  await clearRetryAlarm();
+}
+
+function shouldCheck(reason, state, now) {
+  if (!state.keepAliveActive || !state.savedUID) return false;
+  if (reason === "manual-start" || reason === "alarm" || reason === "retry") return true;
+
+  const lastCheckAt = Number(state.lastCheckAt || 0);
+  if (!lastCheckAt) return true;
+
+  const staleMs = reason === "wake" ? WAKE_STALE_MS : STARTUP_STALE_MS;
+  return now - lastCheckAt >= staleMs;
+}
+
+function nextRetryDelayMinutes(consecutiveFailures) {
+  const index = Math.min(
+    Math.max((consecutiveFailures || 1) - 1, 0),
+    FAILURE_BACKOFF_MINUTES.length - 1
+  );
+  return FAILURE_BACKOFF_MINUTES[index];
+}
+
+async function scheduleRetry(consecutiveFailures) {
+  const delayInMinutes = nextRetryDelayMinutes(consecutiveFailures);
+  log("warn", "Scheduling retry", { consecutiveFailures, delayInMinutes });
+  chrome.alarms.create(RETRY_ALARM, {
+    delayInMinutes
+  });
+}
+
+async function recordResult(result) {
+  await setState(result);
+}
+
+async function runSessionCheck(reason) {
+  return withRunLock(async () => {
+    const now = Date.now();
+    const state = await getState();
+    log("log", "Session check triggered", {
+      reason,
+      keepAliveActive: !!state.keepAliveActive,
+      hasSavedUID: !!state.savedUID,
+      lastCheckAt: state.lastCheckAt || null
+    });
+
+    if (!shouldCheck(reason, state, now)) {
+      log("log", "Skipping session check", { reason });
+      await syncAlarms();
+      return { skipped: true, reason };
+    }
+
+    await recordResult({
+      lastCheckAt: now,
+      lastReason: reason
+    });
+
+    const heartbeat = await sendHeartbeat();
+    if (heartbeat.ok) {
+      log("log", "Heartbeat says session is alive", heartbeat);
+      await clearRetryAlarm();
+      await recordResult({
+        consecutiveFailures: 0,
+        lastOutcome: "live",
+        lastSuccessAt: now
+      });
+      return { ok: true, action: "heartbeat" };
+    }
+
+    if (heartbeat.kind === "network") {
+      log("warn", "Heartbeat failed because network looks unavailable", heartbeat);
+      const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
+      await recordResult({
+        consecutiveFailures,
+        lastOutcome: "network-error",
+        lastFailureAt: now
+      });
+      await scheduleRetry(consecutiveFailures);
+      return { ok: false, action: "retry-scheduled", message: heartbeat.message };
+    }
+
+    log("warn", "Heartbeat says session expired, attempting re-login", heartbeat);
+    const loginResult = await doLogin(state.savedUID);
+    if (loginResult.ok) {
+      log("log", "Automatic re-login succeeded", loginResult);
+      await clearRetryAlarm();
+      await recordResult({
+        consecutiveFailures: 0,
+        lastOutcome: "re-authenticated",
+        lastAuthAt: now,
+        lastSuccessAt: now
+      });
+      return { ok: true, action: "login" };
+    }
+
+    log("error", "Automatic re-login failed", loginResult);
+    const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
+    await recordResult({
+      consecutiveFailures,
+      lastOutcome: "login-failed",
+      lastFailureAt: now
+    });
+    await scheduleRetry(consecutiveFailures);
+    return { ok: false, action: "login-failed", message: loginResult.message };
+  });
+}
+
+async function activateAutomation(savedUID) {
+  log("log", "Activating automation", { hasSavedUID: !!savedUID });
+  await setState({
+    savedUID,
+    keepAliveActive: true,
+    consecutiveFailures: 0
+  });
+  await syncAlarms();
+}
+
+async function deactivateAutomation() {
+  log("log", "Deactivating automation");
+  await setState({
+    keepAliveActive: false
+  });
+  await syncAlarms();
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  ensureAlarm();
+  log("log", "Extension installed/updated");
+  syncAlarms();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  ensureAlarm();
+  log("log", "Browser startup detected");
+  syncAlarms();
+  runSessionCheck("startup");
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === "startKeepAlive") {
     chrome.storage.local.get("savedUID", async (data) => {
-      if (!data.savedUID) {
+      const savedUID = (msg.savedUID || data.savedUID || "").trim();
+      if (!savedUID) {
+        log("warn", "startKeepAlive requested without a saved UID");
         sendResponse({ started: false, error: "No UID saved" });
         return;
       }
 
-      await ensureAlarm();
-
-      chrome.storage.local.set({ keepAliveActive: true });
-
-      // Run one refresh immediately so user doesn't wait for the first alarm.
-      const result = await doLogin(data.savedUID);
-      sendResponse({ started: true, refreshed: result.ok, message: result.message });
+      await activateAutomation(savedUID);
+      log("log", "Automation started");
+      sendResponse({ started: true });
     });
     return true;
   }
+
   if (msg.action === "stopKeepAlive") {
-    chrome.alarms.clear(ALARM_NAME);
-    chrome.storage.local.set({ keepAliveActive: false });
-    sendResponse({ stopped: true });
-    return false;
+    deactivateAutomation().then(() => {
+      log("log", "Automation stopped");
+      sendResponse({ stopped: true });
+    });
+    return true;
+  }
+
+  if (msg.action === "runSessionCheck") {
+    log("log", "Manual session check requested", { reason: msg.reason || "manual-start" });
+    runSessionCheck(msg.reason || "manual-start")
+      .then((result) => sendResponse(result))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
   }
 });
 
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name !== ALARM_NAME) return;
-  const { savedUID } = await chrome.storage.local.get("savedUID");
-  if (!savedUID) return;
+chrome.alarms.onAlarm.addListener((alarm) => {
+  log("log", "Alarm fired", { name: alarm.name });
+  if (alarm.name === SESSION_ALARM) {
+    runSessionCheck("alarm");
+    return;
+  }
 
-  console.log("[SkipHostelWifi] Running keep-alive heartbeat...");
-  const status = await sendHeartbeat();
-
-  if (status.ok) {
-    console.log("[SkipHostelWifi] Heartbeat OK: Session still live");
-  } else {
-    console.warn("[SkipHostelWifi] Heartbeat failed:", status.message, ". Attempting full re-login...");
-    const result = await doLogin(savedUID);
-    if (result.ok) {
-      console.log("[SkipHostelWifi] Re-login successful");
-    } else {
-      console.error("[SkipHostelWifi] Re-login failed:", result.message);
-    }
+  if (alarm.name === RETRY_ALARM) {
+    runSessionCheck("retry");
   }
 });
 
-chrome.idle.onStateChanged.addListener(async (state) => {
+chrome.idle.onStateChanged.addListener((state) => {
+  log("log", "Idle state changed", { state });
   if (state === "active") {
-    const { savedUID, keepAliveActive } = await chrome.storage.local.get(["savedUID", "keepAliveActive"]);
-    if (savedUID && keepAliveActive) {
-      console.log("[SkipHostelWifi] System woke up. Triggering re-authentication...");
-      const result = await doLogin(savedUID);
-      if (result.ok) {
-        console.log("[SkipHostelWifi] Wake-up re-authentication successful");
-      } else {
-        console.warn("[SkipHostelWifi] Wake-up re-authentication failed:", result.message);
-      }
-    }
+    runSessionCheck("wake");
   }
 });
