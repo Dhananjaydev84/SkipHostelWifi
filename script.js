@@ -42,14 +42,11 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   chrome.storage.local.get(
-    ["savedUID", "targetIP", "theme", "keepAliveActive"],
-    (data) => {
-      if (data.savedUID) {
-        document.getElementById("uid").value = data.savedUID;
-      }
-      const ipInput = document.getElementById("target-ip");
-      if (ipInput) {
-        ipInput.value = data.targetIP || "192.168.0.66";
+    ["theme", "keepAliveActive"],
+    async (data) => {
+      const sessionData = await chrome.storage.session.get(["savedUID"]);
+      if (sessionData.savedUID) {
+        document.getElementById("uid").value = sessionData.savedUID;
       }
 
       const cachedTheme = (() => {
@@ -82,66 +79,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   );
 
-  const settingsBtn = document.getElementById("settings-btn");
-  const settingsPanel = document.getElementById("settings-panel");
-  const saveIpBtn = document.getElementById("save-ip");
-  const resetIpBtn = document.getElementById("reset-ip");
-  const ipInput = document.getElementById("target-ip");
   const themeToggle = document.getElementById("theme-toggle");
-
-  const closeSettingsPanel = () => {
-    if (!settingsPanel) return;
-    settingsPanel.classList.add("hidden");
-    settingsPanel.setAttribute("aria-hidden", "true");
-  };
-
-  if (settingsBtn && settingsPanel) {
-    settingsBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
-      settingsPanel.classList.toggle("hidden");
-      settingsPanel.setAttribute(
-        "aria-hidden",
-        settingsPanel.classList.contains("hidden") ? "true" : "false"
-      );
-      if (!settingsPanel.classList.contains("hidden") && ipInput) {
-        chrome.storage.local.get("targetIP", (data) => {
-          ipInput.value = data.targetIP || "192.168.0.66";
-        });
-      }
-    });
-  }
-
-  if (settingsPanel) {
-    settingsPanel.addEventListener("click", (event) => {
-      event.stopPropagation();
-    });
-  }
-
-  document.addEventListener("click", (event) => {
-    if (!settingsPanel || !settingsBtn) return;
-    if (settingsPanel.classList.contains("hidden")) return;
-    const target = event.target;
-    if (target instanceof Node && !settingsPanel.contains(target) && !settingsBtn.contains(target)) {
-      closeSettingsPanel();
-    }
-  });
-
-  if (saveIpBtn && ipInput) {
-    saveIpBtn.addEventListener("click", () => {
-      const newIp = ipInput.value.trim();
-      if (!newIp) return;
-      chrome.storage.local.set({ targetIP: newIp });
-      closeSettingsPanel();
-    });
-  }
-
-  if (resetIpBtn && ipInput) {
-    resetIpBtn.addEventListener("click", () => {
-      const defaultIp = "192.168.0.66";
-      ipInput.value = defaultIp;
-      chrome.storage.local.set({ targetIP: defaultIp });
-    });
-  }
 
   if (themeToggle) {
     themeToggle.addEventListener("change", () => {
@@ -186,7 +124,7 @@ document.getElementById("submit").onclick = async () => {
   }
 
   // Save UID permanently
-  chrome.storage.local.set({ savedUID: userId });
+  chrome.storage.session.set({ savedUID: userId });
 
   output.innerText = "Connecting...";
   clearKeepActiveStatus();
@@ -230,6 +168,7 @@ document.getElementById("disconnect").onclick = () => {
 
   chrome.runtime.sendMessage({ action: "stopKeepAlive" }, (response) => {
     if (response && response.stopped) {
+      chrome.storage.session.remove(["savedUID"]);
       output.innerText = "Disconnected";
       if (keepActiveNote) {
         keepActiveNote.textContent = "";
@@ -240,4 +179,3 @@ document.getElementById("disconnect").onclick = () => {
     }
   });
 };
-//  github version

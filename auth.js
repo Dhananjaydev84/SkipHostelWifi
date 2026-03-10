@@ -28,26 +28,8 @@ function parseInputsFromHtml(html) {
   }));
 }
 
-function getConfiguredIp() {
-  return new Promise((resolve) => {
-    try {
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get("targetIP", (data) => {
-          const ip = data && data.targetIP ? data.targetIP : DEFAULT_IP;
-          resolve(ip);
-        });
-      } else {
-        resolve(DEFAULT_IP);
-      }
-    } catch (_e) {
-      resolve(DEFAULT_IP);
-    }
-  });
-}
-
 async function getLoginUrls() {
-  const ip = await getConfiguredIp();
-  const base = `http://${ip}:${PORT}/`;
+  const base = `http://${DEFAULT_IP}:${PORT}/`;
   return {
     loginBase: base,
     postUrl: `${base}login.xml`

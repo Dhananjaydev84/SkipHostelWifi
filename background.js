@@ -28,17 +28,33 @@ function withRunLock(task) {
 }
 
 async function getState() {
-  return chrome.storage.local.get([
-    "savedUID",
-    "keepAliveActive",
-    "lastCheckAt",
-    "lastAuthAt",
-    "lastSuccessAt",
-    "lastFailureAt",
-    "consecutiveFailures",
-    "lastOutcome",
-    "lastReason"
+  const [localState, sessionState] = await Promise.all([
+    chrome.storage.local.get([
+      "keepAliveActive",
+      "lastCheckAt",
+      "lastAuthAt",
+      "lastSuccessAt",
+      "lastFailureAt",
+      "consecutiveFailures",
+      "lastOutcome",
+      "lastReason"
+    ]),
+    chrome.storage.session.get([
+      "savedUID"
+    ])
   ]);
+  return {
+    ...localState,
+    ...sessionState
+  };
+}
+
+async function setSessionState(patch) {
+  await chrome.storage.session.set(patch);
+}
+
+async function clearSessionState(keys) {
+  await chrome.storage.session.remove(keys);
 }
 
 async function setState(patch) {
@@ -219,8 +235,10 @@ async function runSessionCheck(reason) {
 async function activateAutomation(savedUID) {
   const now = Date.now();
   log("log", "Activating automation", { hasSavedUID: !!savedUID });
+  await setSessionState({
+    savedUID
+  });
   await setState({
-    savedUID,
     keepAliveActive: true,
     consecutiveFailures: 0,
     lastAuthAt: now,
@@ -233,6 +251,7 @@ async function activateAutomation(savedUID) {
 async function deactivateAutomation() {
   log("log", "Deactivating automation");
   await clearRetryAlarm();
+  await clearSessionState(["savedUID"]);
   await setState({
     keepAliveActive: false
   });
@@ -244,6 +263,12 @@ async function resumeAutomationIfNeeded(reason) {
   if (!state.keepAliveActive) {
     log("log", "Worker resume skipped because automation is inactive", { reason });
     await syncAlarms();
+    return;
+  }
+
+  if (!state.savedUID) {
+    log("warn", "Active automation state found without a session UID; deactivating", { reason });
+    await deactivateAutomation();
     return;
   }
 
@@ -264,7 +289,7 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === "startKeepAlive") {
-    chrome.storage.local.get("savedUID", async (data) => {
+    chrome.storage.session.get("savedUID", async (data) => {
       const savedUID = (msg.savedUID || data.savedUID || "").trim();
       if (!savedUID) {
         log("warn", "startKeepAlive requested without a saved UID");
