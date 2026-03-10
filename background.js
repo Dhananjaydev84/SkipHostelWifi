@@ -28,33 +28,17 @@ function withRunLock(task) {
 }
 
 async function getState() {
-  const [localState, sessionState] = await Promise.all([
-    chrome.storage.local.get([
-      "keepAliveActive",
-      "lastCheckAt",
-      "lastAuthAt",
-      "lastSuccessAt",
-      "lastFailureAt",
-      "consecutiveFailures",
-      "lastOutcome",
-      "lastReason"
-    ]),
-    chrome.storage.session.get([
-      "savedUID"
-    ])
+  return chrome.storage.local.get([
+    "savedUID",
+    "keepAliveActive",
+    "lastCheckAt",
+    "lastAuthAt",
+    "lastSuccessAt",
+    "lastFailureAt",
+    "consecutiveFailures",
+    "lastOutcome",
+    "lastReason"
   ]);
-  return {
-    ...localState,
-    ...sessionState
-  };
-}
-
-async function setSessionState(patch) {
-  await chrome.storage.session.set(patch);
-}
-
-async function clearSessionState(keys) {
-  await chrome.storage.session.remove(keys);
 }
 
 async function setState(patch) {
@@ -235,7 +219,7 @@ async function runSessionCheck(reason) {
 async function activateAutomation(savedUID) {
   const now = Date.now();
   log("log", "Activating automation", { hasSavedUID: !!savedUID });
-  await setSessionState({
+  await setState({
     savedUID
   });
   await setState({
@@ -251,7 +235,6 @@ async function activateAutomation(savedUID) {
 async function deactivateAutomation() {
   log("log", "Deactivating automation");
   await clearRetryAlarm();
-  await clearSessionState(["savedUID"]);
   await setState({
     keepAliveActive: false
   });
@@ -289,7 +272,7 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === "startKeepAlive") {
-    chrome.storage.session.get("savedUID", async (data) => {
+    chrome.storage.local.get("savedUID", async (data) => {
       const savedUID = (msg.savedUID || data.savedUID || "").trim();
       if (!savedUID) {
         log("warn", "startKeepAlive requested without a saved UID");

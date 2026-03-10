@@ -42,11 +42,10 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   chrome.storage.local.get(
-    ["theme", "keepAliveActive"],
-    async (data) => {
-      const sessionData = await chrome.storage.session.get(["savedUID"]);
-      if (sessionData.savedUID) {
-        document.getElementById("uid").value = sessionData.savedUID;
+    ["savedUID", "theme", "keepAliveActive"],
+    (data) => {
+      if (data.savedUID) {
+        document.getElementById("uid").value = data.savedUID;
       }
 
       const cachedTheme = (() => {
@@ -124,7 +123,7 @@ document.getElementById("submit").onclick = async () => {
   }
 
   // Save UID permanently
-  chrome.storage.session.set({ savedUID: userId });
+  chrome.storage.local.set({ savedUID: userId });
 
   output.innerText = "Connecting...";
   clearKeepActiveStatus();
@@ -168,7 +167,6 @@ document.getElementById("disconnect").onclick = () => {
 
   chrome.runtime.sendMessage({ action: "stopKeepAlive" }, (response) => {
     if (response && response.stopped) {
-      chrome.storage.session.remove(["savedUID"]);
       output.innerText = "Disconnected";
       if (keepActiveNote) {
         keepActiveNote.textContent = "";
