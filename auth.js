@@ -146,6 +146,7 @@ async function doLogin(userId) {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       credentials: "include",
+      redirect: "follow",
       body: formData
     });
 
@@ -155,6 +156,17 @@ async function doLogin(userId) {
     }
 
     const resultText = await loginResponse.text();
+    const redirectedBackToLogin =
+      loginResponse.redirected &&
+      (loginResponse.url.toLowerCase().includes("login") || isLoginPageHtml(resultText));
+
+    if (redirectedBackToLogin || isLoginPageHtml(resultText)) {
+      authLog("warn", "Portal login POST returned the captive portal login page", {
+        url: loginResponse.url
+      });
+      return { ok: false, message: "Login page returned" };
+    }
+
     if (resultText.includes("successfully") || resultText.includes("LIVE") || resultText.includes("already logged in")) {
       authLog("log", "Portal login succeeded");
       return { ok: true, message: "Connected" };

@@ -2,12 +2,15 @@ importScripts("auth.js");
 
 const SESSION_ALARM = "sessionCheck";
 const RETRY_ALARM = "sessionRetry";
-const PERIOD_MINUTES = 4;
+const PERIOD_MINUTES = 2;
+const NETWORK_RETRY_DELAY_MS = 15 * 1000;
+const NETWORK_RETRY_FALLBACK_MINUTES = 0.5;
+const FORCE_REFRESH_MS = 15 * 60 * 1000;
 const STARTUP_STALE_MS = 2 * PERIOD_MINUTES * 60 * 1000;
 const WAKE_STALE_MS = 90 * 1000;
-const FAILURE_BACKOFF_MINUTES = [1, 2, 4, 8];
 
 let runLock = Promise.resolve();
+let retryTimeoutId = null;
 
 function log(level, message, details) {
   const prefix = "[SkipHostelWifi]";
@@ -43,6 +46,10 @@ async function setState(patch) {
 }
 
 async function clearRetryAlarm() {
+  if (retryTimeoutId !== null) {
+    clearTimeout(retryTimeoutId);
+    retryTimeoutId = null;
+  }
   await chrome.alarms.clear(RETRY_ALARM);
 }
 
@@ -72,7 +79,14 @@ async function syncAlarms() {
 
 function shouldCheck(reason, state, now) {
   if (!state.keepAliveActive || !state.savedUID) return false;
-  if (reason === "manual-start" || reason === "alarm" || reason === "retry") return true;
+  if (
+    reason === "manual-start" ||
+    reason === "alarm" ||
+    reason === "retry" ||
+    reason === "retry-timer"
+  ) {
+    return true;
+  }
 
   const lastCheckAt = Number(state.lastCheckAt || 0);
   if (!lastCheckAt) return true;
@@ -81,19 +95,18 @@ function shouldCheck(reason, state, now) {
   return now - lastCheckAt >= staleMs;
 }
 
-function nextRetryDelayMinutes(consecutiveFailures) {
-  const index = Math.min(
-    Math.max((consecutiveFailures || 1) - 1, 0),
-    FAILURE_BACKOFF_MINUTES.length - 1
-  );
-  return FAILURE_BACKOFF_MINUTES[index];
-}
-
-async function scheduleRetry(consecutiveFailures) {
-  const delayInMinutes = nextRetryDelayMinutes(consecutiveFailures);
-  log("warn", "Scheduling retry", { consecutiveFailures, delayInMinutes });
+async function scheduleRetry() {
+  await clearRetryAlarm();
+  log("warn", "Scheduling retry after network failure", {
+    delayMs: NETWORK_RETRY_DELAY_MS,
+    fallbackDelayInMinutes: NETWORK_RETRY_FALLBACK_MINUTES
+  });
+  retryTimeoutId = setTimeout(() => {
+    retryTimeoutId = null;
+    runSessionCheck("retry-timer");
+  }, NETWORK_RETRY_DELAY_MS);
   chrome.alarms.create(RETRY_ALARM, {
-    delayInMinutes
+    delayInMinutes: NETWORK_RETRY_FALLBACK_MINUTES
   });
 }
 
@@ -125,6 +138,36 @@ async function runSessionCheck(reason) {
 
     const heartbeat = await sendHeartbeat();
     if (heartbeat.ok) {
+      const lastAuthAt = Number(state.lastAuthAt || 0);
+      const forceRefreshDue = !lastAuthAt || now - lastAuthAt >= FORCE_REFRESH_MS;
+
+      if (forceRefreshDue) {
+        log("log", "Heartbeat is live but forced refresh is due; attempting re-login", {
+          lastAuthAt: lastAuthAt || null
+        });
+        const refreshResult = await doLogin(state.savedUID);
+        if (refreshResult.ok) {
+          await clearRetryAlarm();
+          await recordResult({
+            consecutiveFailures: 0,
+            lastOutcome: "forced-refresh",
+            lastAuthAt: now,
+            lastSuccessAt: now
+          });
+          return { ok: true, action: "forced-refresh" };
+        }
+
+        log("error", "Forced refresh re-login failed", refreshResult);
+        const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
+        await recordResult({
+          consecutiveFailures,
+          lastOutcome: "forced-refresh-failed",
+          lastFailureAt: now
+        });
+        await scheduleRetry();
+        return { ok: false, action: "forced-refresh-failed", message: refreshResult.message };
+      }
+
       log("log", "Heartbeat says session is alive", heartbeat);
       await clearRetryAlarm();
       await recordResult({
@@ -143,7 +186,7 @@ async function runSessionCheck(reason) {
         lastOutcome: "network-error",
         lastFailureAt: now
       });
-      await scheduleRetry(consecutiveFailures);
+      await scheduleRetry();
       return { ok: false, action: "retry-scheduled", message: heartbeat.message };
     }
 
@@ -168,38 +211,55 @@ async function runSessionCheck(reason) {
       lastOutcome: "login-failed",
       lastFailureAt: now
     });
-    await scheduleRetry(consecutiveFailures);
+    await scheduleRetry();
     return { ok: false, action: "login-failed", message: loginResult.message };
   });
 }
 
 async function activateAutomation(savedUID) {
+  const now = Date.now();
   log("log", "Activating automation", { hasSavedUID: !!savedUID });
   await setState({
     savedUID,
     keepAliveActive: true,
-    consecutiveFailures: 0
+    consecutiveFailures: 0,
+    lastAuthAt: now,
+    lastSuccessAt: now,
+    lastOutcome: "manual-login"
   });
   await syncAlarms();
 }
 
 async function deactivateAutomation() {
   log("log", "Deactivating automation");
+  await clearRetryAlarm();
   await setState({
     keepAliveActive: false
   });
   await syncAlarms();
 }
 
+async function resumeAutomationIfNeeded(reason) {
+  const state = await getState();
+  if (!state.keepAliveActive) {
+    log("log", "Worker resume skipped because automation is inactive", { reason });
+    await syncAlarms();
+    return;
+  }
+
+  log("log", "Worker resume detected active automation; restoring alarms", { reason });
+  await syncAlarms();
+  await runSessionCheck(reason);
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   log("log", "Extension installed/updated");
-  syncAlarms();
+  resumeAutomationIfNeeded("worker-start");
 });
 
 chrome.runtime.onStartup.addListener(() => {
   log("log", "Browser startup detected");
-  syncAlarms();
-  runSessionCheck("startup");
+  resumeAutomationIfNeeded("startup");
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -254,3 +314,5 @@ chrome.idle.onStateChanged.addListener((state) => {
     runSessionCheck("wake");
   }
 });
+
+resumeAutomationIfNeeded("worker-start");

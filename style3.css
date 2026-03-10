@@ -67,7 +67,7 @@
 
 html,
 body {
-  width: 372px;
+  width: 392px;
   height: 360px;
 }
 
@@ -406,9 +406,13 @@ input::placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  flex-wrap: nowrap;
+  gap: 5px;
+  width: 100%;
+  margin: 0 auto;
   font-size: 11px;
   color: var(--muted);
+  text-align: center;
 }
 
 .footer a {
@@ -419,4 +423,8 @@ input::placeholder {
 
 .footer a:hover {
   text-decoration: underline;
+}
+
+.footer-version {
+  white-space: nowrap;
 }
