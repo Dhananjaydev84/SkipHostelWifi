@@ -5,11 +5,12 @@ const FETCH_TIMEOUT_MS = 8000;
 
 function authLog(level, message, details) {
   const prefix = "[SkipHostelWifi][auth]";
+  const logger = typeof console[level] === "function" ? console[level].bind(console) : console.log.bind(console);
   if (details === undefined) {
-    console[level](`${prefix} ${message}`);
+    logger(`${prefix} ${message}`);
     return;
   }
-  console[level](`${prefix} ${message}`, details);
+  logger(`${prefix} ${message}`, details);
 }
 
 function getAttr(tag, attrName) {
@@ -164,8 +165,9 @@ async function doLogin(userId) {
     authLog("log", "Portal login returned an unrecognized success-like response");
     return { ok: true, message: "Command sent" };
   } catch (error) {
-    authLog("error", "Login request crashed", { message: error && error.message ? error.message : String(error) });
-    return { ok: false, message: "Fetch failed" };
+    const message = error && error.message ? error.message : String(error);
+    authLog("warn", "Login request failed", { message });
+    return { ok: false, message: message || "Fetch failed" };
   }
 }
 
@@ -206,10 +208,11 @@ async function sendHeartbeat() {
     });
     return { ok: true, kind: "live", message: "Session active" };
   } catch (error) {
-    authLog("error", "Heartbeat request crashed", {
-      message: error && error.message ? error.message : String(error)
+    const message = error && error.message ? error.message : String(error);
+    authLog("warn", "Heartbeat request failed", {
+      message
     });
-    return { ok: false, kind: "network", message: "Network error" };
+    return { ok: false, kind: "network", message: message || "Network error" };
   }
 }
 

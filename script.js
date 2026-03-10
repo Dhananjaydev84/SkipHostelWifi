@@ -59,17 +59,6 @@ document.addEventListener("DOMContentLoaded", () => {
       setTheme(theme);
       syncLogoWidthToSubtitle();
 
-      // UI state based on keepAliveActive
-      const submitBtn = document.getElementById("submit");
-      const disconnectBtn = document.getElementById("disconnect");
-      if (data.keepAliveActive) {
-        submitBtn.classList.add("hidden");
-        disconnectBtn.classList.remove("hidden");
-      } else {
-        submitBtn.classList.remove("hidden");
-        disconnectBtn.classList.add("hidden");
-      }
-
       const keepActiveNote = document.getElementById("keep-active-status");
       if (keepActiveNote) {
         keepActiveNote.textContent = data.keepAliveActive ? "Keep active initialised" : "";
@@ -142,8 +131,6 @@ document.getElementById("submit").onclick = async () => {
         }
         if (response && response.started) {
           showKeepActiveStatus("Keep active initialised");
-          document.getElementById("submit").classList.add("hidden");
-          document.getElementById("disconnect").classList.remove("hidden");
         }
       });
     } else {
@@ -159,21 +146,4 @@ document.getElementById("submit").onclick = async () => {
     output.innerText = "Error";
     showKeepActiveStatus("Failed to fetch. Please check connection status and try again");
   }
-};
-
-document.getElementById("disconnect").onclick = () => {
-  const output = document.getElementById("output");
-  const keepActiveNote = document.getElementById("keep-active-status");
-
-  chrome.runtime.sendMessage({ action: "stopKeepAlive" }, (response) => {
-    if (response && response.stopped) {
-      output.innerText = "Disconnected";
-      if (keepActiveNote) {
-        keepActiveNote.textContent = "";
-        keepActiveNote.classList.remove("visible");
-      }
-      document.getElementById("submit").classList.remove("hidden");
-      document.getElementById("disconnect").classList.add("hidden");
-    }
-  });
 };

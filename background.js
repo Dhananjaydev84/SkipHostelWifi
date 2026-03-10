@@ -7,17 +7,19 @@ const NETWORK_RETRY_DELAY_MS = 15 * 1000;
 const NETWORK_RETRY_FALLBACK_MINUTES = 0.5;
 const STARTUP_STALE_MS = 2 * PERIOD_MINUTES * 60 * 1000;
 const WAKE_STALE_MS = 90 * 1000;
+const NETWORK_ERROR_PATTERN = /(fetch|network|abort|timeout|timed out|failed to fetch|heartbeat failed)/i;
 
 let runLock = Promise.resolve();
 let retryTimeoutId = null;
 
 function log(level, message, details) {
   const prefix = "[SkipHostelWifi]";
+  const logger = typeof console[level] === "function" ? console[level].bind(console) : console.log.bind(console);
   if (details === undefined) {
-    console[level](`${prefix} ${message}`);
+    logger(`${prefix} ${message}`);
     return;
   }
-  console[level](`${prefix} ${message}`, details);
+  logger(`${prefix} ${message}`, details);
 }
 
 function withRunLock(task) {
@@ -26,9 +28,33 @@ function withRunLock(task) {
   return nextRun;
 }
 
+function getErrorMessage(error) {
+  if (error && typeof error.message === "string" && error.message) {
+    return error.message;
+  }
+  return String(error || "Unknown error");
+}
+
+function isTransientFailureMessage(message) {
+  return NETWORK_ERROR_PATTERN.test(String(message || ""));
+}
+
+function getActiveUid(state) {
+  return String(state.savedUID || state.savedUIDBackup || "").trim();
+}
+
+function fireAndForget(label, taskFactory) {
+  Promise.resolve()
+    .then(taskFactory)
+    .catch((error) => {
+      log("error", `${label} failed`, { message: getErrorMessage(error) });
+    });
+}
+
 async function getState() {
   return chrome.storage.local.get([
     "savedUID",
+    "savedUIDBackup",
     "keepAliveActive",
     "lastCheckAt",
     "lastAuthAt",
@@ -116,15 +142,33 @@ async function recordResult(result) {
 async function runSessionCheck(reason) {
   return withRunLock(async () => {
     const now = Date.now();
-    const state = await getState();
+    let state = await getState();
+    const activeUid = getActiveUid(state);
+
+    if (!state.savedUID && activeUid) {
+      await setState({ savedUID: activeUid });
+      state = {
+        ...state,
+        savedUID: activeUid
+      };
+    }
+
     log("log", "Session check triggered", {
       reason,
       keepAliveActive: !!state.keepAliveActive,
-      hasSavedUID: !!state.savedUID,
+      hasSavedUID: !!activeUid,
       lastCheckAt: state.lastCheckAt || null
     });
 
     if (!shouldCheck(reason, state, now)) {
+      if (state.keepAliveActive && !activeUid) {
+        log("warn", "Skipping session check because no UID is available yet");
+        await recordResult({
+          lastOutcome: "missing-uid",
+          lastFailureAt: now,
+          lastReason: reason
+        });
+      }
       log("log", "Skipping session check", { reason });
       await syncAlarms();
       return { skipped: true, reason };
@@ -135,29 +179,42 @@ async function runSessionCheck(reason) {
       lastReason: reason
     });
 
-    log("log", "Attempting scheduled re-login", { reason });
-    const loginResult = await doLogin(state.savedUID);
-    if (loginResult.ok) {
-      log("log", "Scheduled re-login succeeded", loginResult);
-      await clearRetryAlarm();
-      await recordResult({
-        consecutiveFailures: 0,
-        lastOutcome: "re-authenticated",
-        lastAuthAt: now,
-        lastSuccessAt: now
-      });
-      return { ok: true, action: "login" };
-    }
+    try {
+      log("log", "Attempting scheduled re-login", { reason });
+      const loginResult = await doLogin(activeUid);
+      if (loginResult.ok) {
+        log("log", "Scheduled re-login succeeded", loginResult);
+        await clearRetryAlarm();
+        await recordResult({
+          consecutiveFailures: 0,
+          lastOutcome: "re-authenticated",
+          lastAuthAt: now,
+          lastSuccessAt: now
+        });
+        return { ok: true, action: "login" };
+      }
 
-    log("error", "Scheduled re-login failed", loginResult);
-    const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
-    await recordResult({
-      consecutiveFailures,
-      lastOutcome: loginResult.message === "Fetch failed" ? "network-error" : "login-failed",
-      lastFailureAt: now
-    });
-    await scheduleRetry();
-    return { ok: false, action: "login-failed", message: loginResult.message };
+      log("warn", "Scheduled re-login failed", loginResult);
+      const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
+      await recordResult({
+        consecutiveFailures,
+        lastOutcome: isTransientFailureMessage(loginResult.message) ? "network-error" : "login-failed",
+        lastFailureAt: now
+      });
+      await scheduleRetry();
+      return { ok: false, action: "login-failed", message: loginResult.message };
+    } catch (error) {
+      const message = getErrorMessage(error);
+      const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
+      log("error", "Session check crashed unexpectedly", { reason, message });
+      await recordResult({
+        consecutiveFailures,
+        lastOutcome: "internal-error",
+        lastFailureAt: now
+      });
+      await scheduleRetry();
+      return { ok: false, action: "internal-error", message };
+    }
   });
 }
 
@@ -165,7 +222,8 @@ async function activateAutomation(savedUID) {
   const now = Date.now();
   log("log", "Activating automation", { hasSavedUID: !!savedUID });
   await setState({
-    savedUID
+    savedUID,
+    savedUIDBackup: savedUID
   });
   await setState({
     keepAliveActive: true,
@@ -194,10 +252,16 @@ async function resumeAutomationIfNeeded(reason) {
     return;
   }
 
-  if (!state.savedUID) {
-    log("warn", "Active automation state found without a session UID; deactivating", { reason });
-    await deactivateAutomation();
+  const activeUid = getActiveUid(state);
+  if (!activeUid) {
+    log("warn", "Active automation state found without any recoverable UID", { reason });
+    await syncAlarms();
     return;
+  }
+
+  if (!state.savedUID && activeUid) {
+    log("warn", "Restoring missing saved UID from backup", { reason });
+    await setState({ savedUID: activeUid });
   }
 
   log("log", "Worker resume detected active automation; restoring alarms", { reason });
@@ -207,35 +271,33 @@ async function resumeAutomationIfNeeded(reason) {
 
 chrome.runtime.onInstalled.addListener(() => {
   log("log", "Extension installed/updated");
-  resumeAutomationIfNeeded("worker-start");
+  fireAndForget("install resume", () => resumeAutomationIfNeeded("worker-start"));
 });
 
 chrome.runtime.onStartup.addListener(() => {
   log("log", "Browser startup detected");
-  resumeAutomationIfNeeded("startup");
+  fireAndForget("startup resume", () => resumeAutomationIfNeeded("startup"));
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === "startKeepAlive") {
     chrome.storage.local.get("savedUID", async (data) => {
-      const savedUID = (msg.savedUID || data.savedUID || "").trim();
-      if (!savedUID) {
-        log("warn", "startKeepAlive requested without a saved UID");
-        sendResponse({ started: false, error: "No UID saved" });
-        return;
+      try {
+        const savedUID = (msg.savedUID || data.savedUID || "").trim();
+        if (!savedUID) {
+          log("warn", "startKeepAlive requested without a saved UID");
+          sendResponse({ started: false, error: "No UID saved" });
+          return;
+        }
+
+        await activateAutomation(savedUID);
+        log("log", "Automation started");
+        sendResponse({ started: true });
+      } catch (error) {
+        const message = getErrorMessage(error);
+        log("error", "Failed to start automation", { message });
+        sendResponse({ started: false, error: message });
       }
-
-      await activateAutomation(savedUID);
-      log("log", "Automation started");
-      sendResponse({ started: true });
-    });
-    return true;
-  }
-
-  if (msg.action === "stopKeepAlive") {
-    deactivateAutomation().then(() => {
-      log("log", "Automation stopped");
-      sendResponse({ stopped: true });
     });
     return true;
   }
@@ -252,20 +314,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 chrome.alarms.onAlarm.addListener((alarm) => {
   log("log", "Alarm fired", { name: alarm.name });
   if (alarm.name === SESSION_ALARM) {
-    runSessionCheck("alarm");
+    fireAndForget("session alarm", () => runSessionCheck("alarm"));
     return;
   }
 
   if (alarm.name === RETRY_ALARM) {
-    runSessionCheck("retry");
+    fireAndForget("retry alarm", () => runSessionCheck("retry"));
   }
 });
 
 chrome.idle.onStateChanged.addListener((state) => {
   log("log", "Idle state changed", { state });
   if (state === "active") {
-    runSessionCheck("wake");
+    fireAndForget("wake check", () => runSessionCheck("wake"));
   }
 });
 
-resumeAutomationIfNeeded("worker-start");
+fireAndForget("initial resume", () => resumeAutomationIfNeeded("worker-start"));
