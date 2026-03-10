@@ -2,10 +2,9 @@ importScripts("auth.js");
 
 const SESSION_ALARM = "sessionCheck";
 const RETRY_ALARM = "sessionRetry";
-const PERIOD_MINUTES = 2;
+const PERIOD_MINUTES = 4;
 const NETWORK_RETRY_DELAY_MS = 15 * 1000;
 const NETWORK_RETRY_FALLBACK_MINUTES = 0.5;
-const FORCE_REFRESH_MS = 15 * 60 * 1000;
 const STARTUP_STALE_MS = 2 * PERIOD_MINUTES * 60 * 1000;
 const WAKE_STALE_MS = 90 * 1000;
 
@@ -136,64 +135,10 @@ async function runSessionCheck(reason) {
       lastReason: reason
     });
 
-    const heartbeat = await sendHeartbeat();
-    if (heartbeat.ok) {
-      const lastAuthAt = Number(state.lastAuthAt || 0);
-      const forceRefreshDue = !lastAuthAt || now - lastAuthAt >= FORCE_REFRESH_MS;
-
-      if (forceRefreshDue) {
-        log("log", "Heartbeat is live but forced refresh is due; attempting re-login", {
-          lastAuthAt: lastAuthAt || null
-        });
-        const refreshResult = await doLogin(state.savedUID);
-        if (refreshResult.ok) {
-          await clearRetryAlarm();
-          await recordResult({
-            consecutiveFailures: 0,
-            lastOutcome: "forced-refresh",
-            lastAuthAt: now,
-            lastSuccessAt: now
-          });
-          return { ok: true, action: "forced-refresh" };
-        }
-
-        log("error", "Forced refresh re-login failed", refreshResult);
-        const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
-        await recordResult({
-          consecutiveFailures,
-          lastOutcome: "forced-refresh-failed",
-          lastFailureAt: now
-        });
-        await scheduleRetry();
-        return { ok: false, action: "forced-refresh-failed", message: refreshResult.message };
-      }
-
-      log("log", "Heartbeat says session is alive", heartbeat);
-      await clearRetryAlarm();
-      await recordResult({
-        consecutiveFailures: 0,
-        lastOutcome: "live",
-        lastSuccessAt: now
-      });
-      return { ok: true, action: "heartbeat" };
-    }
-
-    if (heartbeat.kind === "network") {
-      log("warn", "Heartbeat failed because network looks unavailable", heartbeat);
-      const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
-      await recordResult({
-        consecutiveFailures,
-        lastOutcome: "network-error",
-        lastFailureAt: now
-      });
-      await scheduleRetry();
-      return { ok: false, action: "retry-scheduled", message: heartbeat.message };
-    }
-
-    log("warn", "Heartbeat says session expired, attempting re-login", heartbeat);
+    log("log", "Attempting scheduled re-login", { reason });
     const loginResult = await doLogin(state.savedUID);
     if (loginResult.ok) {
-      log("log", "Automatic re-login succeeded", loginResult);
+      log("log", "Scheduled re-login succeeded", loginResult);
       await clearRetryAlarm();
       await recordResult({
         consecutiveFailures: 0,
@@ -204,11 +149,11 @@ async function runSessionCheck(reason) {
       return { ok: true, action: "login" };
     }
 
-    log("error", "Automatic re-login failed", loginResult);
+    log("error", "Scheduled re-login failed", loginResult);
     const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
     await recordResult({
       consecutiveFailures,
-      lastOutcome: "login-failed",
+      lastOutcome: loginResult.message === "Fetch failed" ? "network-error" : "login-failed",
       lastFailureAt: now
     });
     await scheduleRetry();
