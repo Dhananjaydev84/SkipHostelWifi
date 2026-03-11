@@ -1,6 +1,17 @@
 // Shared login logic for popup and background (Cyberoam/Sophos portal).
 const DEFAULT_IP = "192.168.0.66";
 const PORT = "8090";
+const FETCH_TIMEOUT_MS = 8000;
+
+function authLog(level, message, details) {
+  const prefix = "[SkipHostelWifi][auth]";
+  const logger = typeof console[level] === "function" ? console[level].bind(console) : console.log.bind(console);
+  if (details === undefined) {
+    logger(`${prefix} ${message}`);
+    return;
+  }
+  logger(`${prefix} ${message}`, details);
+}
 
 function getAttr(tag, attrName) {
   const re = new RegExp(`${attrName}\\s*=\\s*(\"([^\"]*)\"|'([^']*)'|([^\\s>]+))`, "i");
@@ -18,42 +29,52 @@ function parseInputsFromHtml(html) {
   }));
 }
 
-function getConfiguredIp() {
-  return new Promise((resolve) => {
-    try {
-      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get("targetIP", (data) => {
-          const ip = data && data.targetIP ? data.targetIP : DEFAULT_IP;
-          resolve(ip);
-        });
-      } else {
-        resolve(DEFAULT_IP);
-      }
-    } catch (_e) {
-      resolve(DEFAULT_IP);
-    }
-  });
-}
-
 async function getLoginUrls() {
-  const ip = await getConfiguredIp();
-  const base = `http://${ip}:${PORT}/`;
+  const base = `http://${DEFAULT_IP}:${PORT}/`;
   return {
     loginBase: base,
     postUrl: `${base}login.xml`
   };
 }
 
+function isLoginPageHtml(html) {
+  const normalized = String(html || "").toLowerCase();
+  return (
+    normalized.includes("<form") &&
+    (normalized.includes("password") ||
+      normalized.includes("username") ||
+      normalized.includes("login"))
+  );
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, {
+      cache: "no-store",
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function doLogin(userId) {
   try {
     if (!userId || !userId.trim()) {
+      authLog("warn", "Login skipped because UID is empty");
       return { ok: false, message: "No UID" };
     }
     const uid = userId.trim();
     const { loginBase, postUrl } = await getLoginUrls();
+    authLog("log", "Starting login flow", { loginBase, postUrl });
 
-    const response = await fetch(loginBase, { credentials: "include" });
+    const response = await fetchWithTimeout(loginBase, { credentials: "include" });
     if (!response.ok) {
+      authLog("warn", "Portal pre-login fetch failed", { status: response.status });
       return { ok: false, message: "Fetch failed: " + response.status };
     }
 
@@ -104,51 +125,94 @@ async function doLogin(userId) {
     if (!foundUser) formData.append("username", uid);
     if (!foundPass) formData.append("password", uid);
 
-    const loginResponse = await fetch(postUrl, {
+    const loginResponse = await fetchWithTimeout(postUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       credentials: "include",
+      redirect: "follow",
       body: formData
     });
 
     if (!loginResponse.ok) {
+      authLog("warn", "Portal login POST failed", { status: loginResponse.status });
       return { ok: false, message: "Server: " + loginResponse.status };
     }
 
     const resultText = await loginResponse.text();
+    const redirectedBackToLogin =
+      loginResponse.redirected &&
+      (loginResponse.url.toLowerCase().includes("login") || isLoginPageHtml(resultText));
+
+    if (redirectedBackToLogin || isLoginPageHtml(resultText)) {
+      authLog("warn", "Portal login POST returned the captive portal login page", {
+        url: loginResponse.url
+      });
+      return { ok: false, message: "Login page returned" };
+    }
+
     if (resultText.includes("successfully") || resultText.includes("LIVE") || resultText.includes("already logged in")) {
+      authLog("log", "Portal login succeeded");
       return { ok: true, message: "Connected" };
     }
     if (resultText.toLowerCase().includes("limit reached")) {
+      authLog("warn", "Portal rejected login because limit was reached");
       return { ok: false, message: "Data limit reached" };
     }
     if (resultText.toLowerCase().includes("failed") || resultText.includes("Invalid")) {
+      authLog("warn", "Portal rejected login because credentials looked invalid");
       return { ok: false, message: "Check ID/Password" };
     }
+    authLog("log", "Portal login returned an unrecognized success-like response");
     return { ok: true, message: "Command sent" };
   } catch (error) {
-    return { ok: false, message: "Fetch failed" };
+    const message = error && error.message ? error.message : String(error);
+    authLog("warn", "Login request failed", { message });
+    return { ok: false, message: message || "Fetch failed" };
   }
 }
 
 async function sendHeartbeat() {
   try {
-    const { postUrl } = await getLoginUrls();
-    const response = await fetch(postUrl + "?mode=192", {
+    const { loginBase } = await getLoginUrls();
+    authLog("log", "Sending heartbeat", { heartbeatUrl: loginBase });
+    const response = await fetchWithTimeout(loginBase, {
       method: "GET",
-      credentials: "include"
+      credentials: "include",
+      redirect: "follow"
     });
 
-    if (!response.ok) return { ok: false, message: "Heartbeat failed" };
+    if (!response.ok) {
+      authLog("warn", "Heartbeat HTTP request failed", { status: response.status });
+      return { ok: false, kind: "network", message: "Heartbeat failed" };
+    }
 
     const text = await response.text();
-    // Sophos/Cyberoam mode 192 returns an XML-like structure with session status
-    if (text.includes("<status>live</status>") || text.includes("LIVE")) {
-      return { ok: true, message: "Session active" };
+    const redirectedToLogin =
+      response.redirected &&
+      (response.url.toLowerCase().includes("login") || isLoginPageHtml(text));
+
+    if (redirectedToLogin) {
+      authLog("warn", "Heartbeat was redirected to the captive portal login page", {
+        url: response.url
+      });
+      return { ok: false, kind: "expired", message: "Redirected to login page" };
     }
-    return { ok: false, message: "Session expired" };
-  } catch (err) {
-    return { ok: false, message: "Network error" };
+
+    if (isLoginPageHtml(text)) {
+      authLog("warn", "Heartbeat returned captive portal login HTML");
+      return { ok: false, kind: "expired", message: "Login page returned" };
+    }
+
+    authLog("log", "Heartbeat succeeded without redirect; treating session as alive", {
+      url: response.url
+    });
+    return { ok: true, kind: "live", message: "Session active" };
+  } catch (error) {
+    const message = error && error.message ? error.message : String(error);
+    authLog("warn", "Heartbeat request failed", {
+      message
+    });
+    return { ok: false, kind: "network", message: message || "Network error" };
   }
 }
 
