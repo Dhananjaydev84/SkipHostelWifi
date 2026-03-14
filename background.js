@@ -3,14 +3,13 @@ importScripts("auth.js");
 const SESSION_ALARM = "sessionCheck";
 const RETRY_ALARM = "sessionRetry";
 const PERIOD_MINUTES = 4;
-const NETWORK_RETRY_DELAY_MS = 15 * 1000;
 const NETWORK_RETRY_FALLBACK_MINUTES = 0.5;
 const STARTUP_STALE_MS = 2 * PERIOD_MINUTES * 60 * 1000;
 const WAKE_STALE_MS = 90 * 1000;
+const RUN_LOCK_MAX_AGE_MS = 60 * 1000;
 const NETWORK_ERROR_PATTERN = /(fetch|network|abort|timeout|timed out|failed to fetch|heartbeat failed)/i;
 
-let runLock = Promise.resolve();
-let retryTimeoutId = null;
+chrome.idle.setDetectionInterval(120);
 
 function log(level, message, details) {
   const prefix = "[SkipHostelWifi]";
@@ -20,12 +19,6 @@ function log(level, message, details) {
     return;
   }
   logger(`${prefix} ${message}`, details);
-}
-
-function withRunLock(task) {
-  const nextRun = runLock.then(task, task);
-  runLock = nextRun.catch(() => {});
-  return nextRun;
 }
 
 function getErrorMessage(error) {
@@ -71,11 +64,23 @@ async function setState(patch) {
 }
 
 async function clearRetryAlarm() {
-  if (retryTimeoutId !== null) {
-    clearTimeout(retryTimeoutId);
-    retryTimeoutId = null;
-  }
   await chrome.alarms.clear(RETRY_ALARM);
+}
+
+async function acquireRunLock(now) {
+  const { lockAcquiredAt } = await chrome.storage.local.get("lockAcquiredAt");
+  const lastLockAt = Number(lockAcquiredAt || 0);
+
+  if (lastLockAt && now - lastLockAt < RUN_LOCK_MAX_AGE_MS) {
+    return false;
+  }
+
+  await chrome.storage.local.set({ lockAcquiredAt: now });
+  return true;
+}
+
+async function releaseRunLock() {
+  await chrome.storage.local.remove("lockAcquiredAt");
 }
 
 async function syncAlarms() {
@@ -104,12 +109,7 @@ async function syncAlarms() {
 
 function shouldCheck(reason, state, now) {
   if (!state.keepAliveActive || !state.savedUID) return false;
-  if (
-    reason === "manual-start" ||
-    reason === "alarm" ||
-    reason === "retry" ||
-    reason === "retry-timer"
-  ) {
+  if (reason === "manual-start" || reason === "alarm" || reason === "retry") {
     return true;
   }
 
@@ -123,13 +123,8 @@ function shouldCheck(reason, state, now) {
 async function scheduleRetry() {
   await clearRetryAlarm();
   log("warn", "Scheduling retry after network failure", {
-    delayMs: NETWORK_RETRY_DELAY_MS,
     fallbackDelayInMinutes: NETWORK_RETRY_FALLBACK_MINUTES
   });
-  retryTimeoutId = setTimeout(() => {
-    retryTimeoutId = null;
-    runSessionCheck("retry-timer");
-  }, NETWORK_RETRY_DELAY_MS);
   chrome.alarms.create(RETRY_ALARM, {
     delayInMinutes: NETWORK_RETRY_FALLBACK_MINUTES
   });
@@ -140,8 +135,15 @@ async function recordResult(result) {
 }
 
 async function runSessionCheck(reason) {
-  return withRunLock(async () => {
-    const now = Date.now();
+  const now = Date.now();
+  const lockAcquired = await acquireRunLock(now);
+
+  if (!lockAcquired) {
+    log("log", "Skipping session check because another run is still active", { reason });
+    return { skipped: true, reason, lockActive: true };
+  }
+
+  try {
     let state = await getState();
     const activeUid = getActiveUid(state);
 
@@ -180,7 +182,36 @@ async function runSessionCheck(reason) {
     });
 
     try {
-      log("log", "Attempting scheduled re-login", { reason });
+      log("log", "Sending heartbeat before deciding whether re-login is needed", { reason });
+      const heartbeatResult = await sendHeartbeat();
+
+      if (heartbeatResult.ok) {
+        log("log", "Heartbeat confirmed the session is still active", heartbeatResult);
+        await clearRetryAlarm();
+        await recordResult({
+          consecutiveFailures: 0,
+          lastOutcome: "session-active",
+          lastSuccessAt: now
+        });
+        return { ok: true, action: "heartbeat" };
+      }
+
+      if (heartbeatResult.kind === "network") {
+        log("warn", "Heartbeat failed because of a transient network issue", heartbeatResult);
+        const consecutiveFailures = Number(state.consecutiveFailures || 0) + 1;
+        await recordResult({
+          consecutiveFailures,
+          lastOutcome: "network-error",
+          lastFailureAt: now
+        });
+        await scheduleRetry();
+        return { ok: false, action: "heartbeat-network-failed", message: heartbeatResult.message };
+      }
+
+      log("log", "Heartbeat reported an expired session; attempting scheduled re-login", {
+        reason,
+        message: heartbeatResult.message
+      });
       const loginResult = await doLogin(activeUid);
       if (loginResult.ok) {
         log("log", "Scheduled re-login succeeded", loginResult);
@@ -215,7 +246,9 @@ async function runSessionCheck(reason) {
       await scheduleRetry();
       return { ok: false, action: "internal-error", message };
     }
-  });
+  } finally {
+    await releaseRunLock();
+  }
 }
 
 async function activateAutomation(savedUID) {
