@@ -5,10 +5,10 @@ const ALARM_NAME = "wifiKeepAlive";
 const KEEP_ALIVE_MINUTES = 5;
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg.action === "startKeepAlive") {
-    chrome.storage.local.get("savedUID", (data) => {
+  if (msg.action === "startKeepAlive") {  // Start the keep-alive process
+    chrome.storage.local.get("savedUID", (data) => { //
       if (data.savedUID) {
-        chrome.alarms.create(ALARM_NAME, { periodInMinutes: KEEP_ALIVE_MINUTES });
+        chrome.alarms.create(ALARM_NAME, { periodInMinutes: KEEP_ALIVE_MINUTES });  // Create a repeating alarm
         sendResponse({ started: true });
       } else {
         sendResponse({ started: false, error: "No UID saved" });
