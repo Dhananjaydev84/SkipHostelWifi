@@ -1,5 +1,5 @@
 // ================================
-// Load saved UID, IP, and theme when popup opens
+// Frontend: UI, theme, and submit handler
 // ================================
 document.addEventListener("DOMContentLoaded", () => {
   const LOGO_SOURCES = {
@@ -10,7 +10,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const applyThemeLogo = (theme) => {
     const logo = document.querySelector(".title-logo");
     if (!logo) return;
-
     const nextSrc = theme === "light" ? LOGO_SOURCES.light : LOGO_SOURCES.dark;
     if (nextSrc && logo.getAttribute("src") !== nextSrc) {
       logo.setAttribute("src", nextSrc);
@@ -22,7 +21,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const logo = document.querySelector(".title-logo");
     const brand = document.querySelector(".brand");
     if (!subtitle || !logo || !brand) return;
-
     const targetWidth = Math.ceil(subtitle.getBoundingClientRect().width + 8);
     const maxSafeWidth = Math.floor(brand.getBoundingClientRect().width);
     logo.style.width = `${Math.min(targetWidth, maxSafeWidth)}px`;
@@ -41,38 +39,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  chrome.storage.local.get(
-    ["savedUID", "theme", "keepAliveActive"],
-    (data) => {
-      if (data.savedUID) {
-        document.getElementById("uid").value = data.savedUID;
-      }
-
-      const cachedTheme = (() => {
-        try {
-          return localStorage.getItem("theme");
-        } catch (_e) {
-          return null;
-        }
-      })();
-      const theme = data.theme || cachedTheme || "dark";
-      setTheme(theme);
-      syncLogoWidthToSubtitle();
-
-      const keepActiveNote = document.getElementById("keep-active-status");
-      if (keepActiveNote) {
-        keepActiveNote.textContent = data.keepAliveActive ? "Keep active initialised" : "";
-        keepActiveNote.classList.toggle("visible", !!data.keepAliveActive);
-      }
+  chrome.storage.local.get(["savedUID", "theme"], (data) => {
+    if (data.savedUID) {
+      document.getElementById("uid").value = data.savedUID;
     }
-  );
+
+    const cachedTheme = (() => {
+      try {
+        return localStorage.getItem("theme");
+      } catch (_e) {
+        return null;
+      }
+    })();
+    const theme = data.theme || cachedTheme || "dark";
+    setTheme(theme);
+    syncLogoWidthToSubtitle();
+  });
 
   const themeToggle = document.getElementById("theme-toggle");
-
   if (themeToggle) {
     themeToggle.addEventListener("change", () => {
-      const isLight = themeToggle.checked;
-      const nextTheme = isLight ? "light" : "dark";
+      const nextTheme = themeToggle.checked ? "light" : "dark";
       setTheme(nextTheme);
       chrome.storage.local.set({ theme: nextTheme });
       syncLogoWidthToSubtitle();
@@ -88,62 +75,34 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ================================
-// Submit button logic
+// Submit button → calls doLogin() from auth.js
 // ================================
 document.getElementById("submit").onclick = async () => {
   const userId = document.getElementById("uid").value.trim();
   const output = document.getElementById("output");
-  const keepActiveNote = document.getElementById("keep-active-status");
-  const showKeepActiveStatus = (message) => {
-    if (!keepActiveNote) return;
-    keepActiveNote.textContent = message;
-    keepActiveNote.classList.add("visible");
-  };
-  const clearKeepActiveStatus = () => {
-    if (!keepActiveNote) return;
-    keepActiveNote.textContent = "";
-    keepActiveNote.classList.remove("visible");
-  };
 
-  // Validation
   if (userId === "") {
     output.innerText = "Error: Please enter your UID";
     return;
   }
 
-  // Save UID permanently
   chrome.storage.local.set({ savedUID: userId });
-
   output.innerText = "Connecting...";
-  clearKeepActiveStatus();
 
   try {
     const result = await doLogin(userId);
-    const message = result && result.message ? String(result.message) : "";
-    const isFetchError = message.toLowerCase().includes("fetch");
-
     if (result && result.ok) {
-      output.innerText = "Connected";
-      chrome.runtime.sendMessage({ action: "startKeepAlive", savedUID: userId }, (response) => {
-        if (chrome.runtime.lastError) {
-          console.warn("Failed to start keep-alive:", chrome.runtime.lastError.message);
-          return;
-        }
-        if (response && response.started) {
-          showKeepActiveStatus("Keep active initialised");
-        }
-      });
+      output.innerText = "Connected successfully!";
     } else {
-      if (isFetchError) {
-        output.innerText = "Error";
-        showKeepActiveStatus("Failed to fetch. Please check connection status and try again");
-      } else {
-        output.innerText = "Error: " + message;
-      }
+      output.innerText = (result && result.message) || "Login failed.";
     }
   } catch (err) {
-    console.error(err);
-    output.innerText = "Error";
-    showKeepActiveStatus("Failed to fetch. Please check connection status and try again");
+    if (err.name === "AbortError") {
+      output.innerText = "Timed out. Check your connection.";
+    } else if (err.message && err.message.includes("Failed to fetch")) {
+      output.innerText = "Already connected or portal unreachable.";
+    } else {
+      output.innerText = "Error: " + (err.message || err.name || String(err));
+    }
   }
 };

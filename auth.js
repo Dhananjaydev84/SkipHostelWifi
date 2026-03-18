@@ -1,75 +1,59 @@
 // Shared login logic for popup and background (Cyberoam/Sophos portal).
+// Directly POSTs credentials — no need to fetch & parse the portal page.
 // Attaches to self (worker) or window (popup) so both can use doLogin(uid).
 (function (global) {
-  const LOGIN_BASE = "http://192.168.0.66:8090/";
-  const POST_URL = "http://192.168.0.66:8090/login.xml";
+  var POST_URL = "http://192.168.0.66:8090/login.xml";
+  var TIMEOUT_MS = 30000; // 30 seconds
 
   async function doLogin(userId) {
     if (!userId || !userId.trim()) {
       return { ok: false, message: "No UID" };
     }
-    const uid = userId.trim();
+    var uid = userId.trim();
 
-    const response = await fetch(LOGIN_BASE);
-    if (!response.ok) {
-      return { ok: false, message: "Fetch failed: " + response.status };
-    }
+    // Cyberoam/Sophos uses these known fields — no need to fetch the page first.
+    var formData = new URLSearchParams();
+    formData.append("mode", "191");
+    formData.append("username", uid);
+    formData.append("password", uid);
 
-    const text = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(text, "text/html");
-    const inputs = doc.querySelectorAll("input");
-    if (inputs.length === 0) {
-      return { ok: false, message: "No form inputs" };
-    }
+    // Fetch with timeout so it never hangs forever.
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, TIMEOUT_MS);
 
-    const formData = new URLSearchParams();
-    let foundUser = false;
-    let foundPass = false;
+    try {
+      var response = await fetch(POST_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData,
+        signal: controller.signal
+      });
+      clearTimeout(timer);
 
-    inputs.forEach(function (input) {
-      const name = input.name;
-      if (!name) return;
-      const lowerName = name.toLowerCase();
-      const lowerId = (input.id || "").toLowerCase();
-      if (lowerId === "username" || lowerName.includes("user")) {
-        formData.append(name, uid);
-        foundUser = true;
-      } else if (lowerId === "password" || input.type === "password" || lowerName.includes("pass")) {
-        formData.append(name, uid);
-        foundPass = true;
-      } else {
-        formData.append(name, input.value);
+      if (!response.ok) {
+        return { ok: false, message: "Server: " + response.status };
       }
-    });
 
-    if (text.includes("Cyberoam") || text.includes("Sophos")) {
-      if (!formData.has("mode")) formData.append("mode", "191");
-    }
-    if (!foundUser) formData.append("username", uid);
-    if (!foundPass) formData.append("password", uid);
+      var resultText = await response.text();
+      console.log("[SkipHostelWifi] Response:", resultText);
 
-    const loginResponse = await fetch(POST_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: formData
-    });
-
-    if (!loginResponse.ok) {
-      return { ok: false, message: "Server: " + loginResponse.status };
+      if (resultText.includes("successfully") || resultText.includes("LIVE")) {
+        return { ok: true, message: "Connected" };
+      }
+      if (resultText.toLowerCase().includes("limit reached")) {
+        return { ok: false, message: "Data limit reached" };
+      }
+      if (resultText.toLowerCase().includes("failed") || resultText.includes("Invalid")) {
+        return { ok: false, message: "Check ID/Password" };
+      }
+      return { ok: true, message: "Command sent" };
+    } catch (err) {
+      clearTimeout(timer);
+      if (err.name === "AbortError") {
+        return { ok: false, message: "Timed out. Check your connection." };
+      }
+      return { ok: false, message: "Network error. Make sure WiFi is on." };
     }
-
-    const resultText = await loginResponse.text();
-    if (resultText.includes("successfully") || resultText.includes("LIVE")) {
-      return { ok: true, message: "Connected" };
-    }
-    if (resultText.toLowerCase().includes("limit reached")) {
-      return { ok: false, message: "Data limit reached" };
-    }
-    if (resultText.toLowerCase().includes("failed") || resultText.includes("Invalid")) {
-      return { ok: false, message: "Check ID/Password" };
-    }
-    return { ok: true, message: "Command sent" };
   }
 
   (global.self || global.window || global).doLogin = doLogin;
