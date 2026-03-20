@@ -5,8 +5,7 @@
   "description": "Automates WiFi login for Rajagiri(RSET) campus and hostels to avoid repeated manual authentication.",
   "permissions": [
     "storage",
-    "alarms",
-    "idle"
+    "alarms"
   ],
   "host_permissions": [
     "http://192.168.0.66/*"

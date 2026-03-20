@@ -93,6 +93,7 @@ document.getElementById("submit").onclick = async () => {
     const result = await doLogin(userId);
     if (result && result.ok) {
       output.innerText = "Connected successfully!";
+      chrome.runtime.sendMessage({ action: "startKeepAlive" });
     } else {
       output.innerText = (result && result.message) || "Login failed.";
     }
@@ -106,3 +107,19 @@ document.getElementById("submit").onclick = async () => {
     }
   }
 };
+
+// ================================
+// Keep-alive status feedback from background.js
+// ================================
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === "keepAliveStatus") {
+    const el = document.getElementById("keepAliveStatus");
+    if (message.status === "ok") {
+      el.textContent = "Keep alive initialised";
+    } else {
+      el.textContent = "Error in Keep alive";
+    }
+    el.classList.add("visible"); // triggers fade-in
+  }
+});
+
