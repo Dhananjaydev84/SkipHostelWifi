@@ -3,14 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Main stylesheet for the popup UI -->
   <link rel="stylesheet" href="style3.css">
   <title>SkipHostelWifi</title>
 </head>
 
 <body>
+  <!-- Root container — flex column: card + footer -->
   <div id="popup-root" class="app">
+
+    <!-- Main card: holds the header + form content -->
     <main class="card">
+
+      <!-- Top bar: theme toggle | branding | spacer (3-column grid) -->
       <header class="top-bar">
+
+        <!-- Dark/Light theme toggle switch -->
         <label class="theme-switch" title="Toggle theme">
           <input id="theme-toggle" type="checkbox" aria-label="Toggle theme">
           <span class="switch-track">
@@ -18,29 +26,41 @@
           </span>
         </label>
 
+        <!-- Branding: logo image + subtitle text -->
         <div class="brand">
           <div class="title">
             <img class="title-logo" src="images/Main logo2.png" alt="Skip Hostel Wifi">
           </div>
-          <div class="subtitle">Auto login for hostel & campus WiFi</div>
+          <div class="subtitle">Auto login for hostel &amp; campus WiFi</div>
         </div>
+
+        <!-- Right-side spacer to keep brand centered in the grid -->
         <span class="top-bar-spacer" aria-hidden="true"></span>
       </header>
 
+      <!-- Main form: UID input + Connect button + status feedback -->
       <section class="content">
+
+        <!-- User ID input field -->
         <label class="field">
           <span class="label">User ID</span>
           <input id="uid" type="text" placeholder="Enter User ID" autocomplete="off">
         </label>
 
+        <!-- Action buttons row -->
         <div class="actions">
           <button id="submit" class="primary" type="button"><span>Connect</span></button>
         </div>
+
+        <!-- Login status message (e.g. "Connecting…", "Connected successfully!") -->
         <div id="output" class="status"></div>
+
+        <!-- Keep-alive background status (fades in after keep-alive acknowledges) -->
         <p id="keepAliveStatus" class="keep-alive-status"></p>
       </section>
     </main>
 
+    <!-- Footer: credits + feedback link + version badge -->
     <footer class="footer">
       <span class="footer-text">Built by</span>
       <a href="https://www.linkedin.com/in/dhananjay-dev-204b72292/" target="_blank" rel="noreferrer">Dhananjay Dev</a>
@@ -50,9 +70,11 @@
       <span class="sep">&bull;</span>
       <a href="https://www.google.com/" target="_blank" rel="noreferrer">Feedback</a>
       <span class="sep">&bull;</span>
-      <span class="footer-text footer-version">Beta1.3</span>
+      <span class="footer-text footer-version">Beta2.0</span>
     </footer>
   </div>
+
+  <!-- auth.js must load first — it defines doLogin() used by popup.js -->
   <script src="auth.js"></script>
   <script src="popup.js"></script>
 </body>

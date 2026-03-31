@@ -1,100 +1,172 @@
+/* ============================================================
+   style3.css — Popup UI stylesheet for SkipHostelWifi
+   Covers: design tokens, typography, layout, theme toggle,
+           form controls, status area, keep-alive indicator, footer
+   ============================================================ */
 
+
+/* ============================================================
+   1. DESIGN TOKENS — Dark theme (default)
+   All colours and shadows are driven by CSS custom properties
+   so a single class swap (.light-theme) rewrites the whole UI.
+   ============================================================ */
 :root {
   color-scheme: dark;
+
+  /* Background — solid base + multi-stop ambient glow */
   --bg: #0d0f14;
-  --bg-glow: radial-gradient(120px 120px at 10% 10%, rgba(111, 123, 255, 0.2), transparent 60%),
-    radial-gradient(160px 140px at 90% 20%, rgba(78, 198, 255, 0.15), transparent 60%),
-    radial-gradient(120px 120px at 50% 90%, rgba(255, 170, 90, 0.08), transparent 65%);
-  --card-bg: #171b22;
+  --bg-glow:
+    radial-gradient(120px 120px at 10%  10%, rgba(111, 123, 255, 0.20), transparent 60%),
+    radial-gradient(160px 140px at 90%  20%, rgba( 78, 198, 255, 0.15), transparent 60%),
+    radial-gradient(120px 120px at 50%  90%, rgba(255, 170,  90, 0.08), transparent 65%);
+
+  /* Card surface */
+  --card-bg:     #171b22;
   --card-border: #262e3b;
-  --text: #f2f4f8;
+
+  /* Text */
+  --text:  #f2f4f8;
   --muted: #a9b2c1;
-  --accent: #6f7bff;
+
+  /* Accent (purple-blue) */
+  --accent:       #6f7bff;
   --accent-strong: #8ea0ff;
-  --accent-glow: rgba(111, 123, 255, 0.35);
-  --input-bg: #10141b;
+  --accent-glow:  rgba(111, 123, 255, 0.35);
+
+  /* Input field */
+  --input-bg:     #10141b;
   --input-border: #2a3240;
-  --button-bg: #6f7bff;
+
+  /* Primary button */
+  --button-bg:   #6f7bff;
   --button-text: #0b0d14;
-  --status-bg: #11161e;
+
+  /* Status box */
+  --status-bg:     #11161e;
   --status-border: #263043;
+
+  /* Outer drop-shadow */
   --shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
 }
 
+
+/* ============================================================
+   2. DESIGN TOKENS — Light theme override
+   Applied when JS toggles the .light-theme class on <html>.
+   ============================================================ */
+.light-theme {
+  color-scheme: light;
+
+  --bg: #f3f5f9;
+  --bg-glow:
+    radial-gradient(140px 120px at 10%  10%, rgba(112, 134, 255, 0.18), transparent 60%),
+    radial-gradient(160px 140px at 90%  20%, rgba( 94, 205, 255, 0.18), transparent 60%),
+    radial-gradient(140px 120px at 50%  90%, rgba(255, 175,  90, 0.12), transparent 65%);
+
+  --card-bg:     #ffffff;
+  --card-border: #e2e7f0;
+
+  --text:  #161c25;
+  --muted: #5f6c7c;
+
+  --accent:        #4656ff;
+  --accent-strong: #2f3be6;
+  --accent-glow:   rgba(70, 86, 255, 0.20);
+
+  --input-bg:     #f7f9fc;
+  --input-border: #d7dde8;
+
+  --button-bg:   #4656ff;
+  --button-text: #f6f7ff;
+
+  --status-bg:     #eef2fb;
+  --status-border: #dae2f2;
+
+  --shadow: 0 18px 45px rgba(31, 45, 61, 0.15);
+}
+
+
+/* ============================================================
+   3. TYPOGRAPHY — Local Rubik variable font
+   Loaded locally to avoid network requests inside the extension.
+   ============================================================ */
 @font-face {
   font-family: 'Rubik';
   src: url('fonts/Rubik-VariableFont_wght.ttf') format('truetype');
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 100 900; /* full variable range */
 }
 
 
-.light-theme {
-  color-scheme: light;
-  --bg: #f3f5f9;
-  --bg-glow: radial-gradient(140px 120px at 10% 10%, rgba(112, 134, 255, 0.18), transparent 60%),
-    radial-gradient(160px 140px at 90% 20%, rgba(94, 205, 255, 0.18), transparent 60%),
-    radial-gradient(140px 120px at 50% 90%, rgba(255, 175, 90, 0.12), transparent 65%);
-  --card-bg: #ffffff;
-  --card-border: #e2e7f0;
-  --text: #161c25;
-  --muted: #5f6c7c;
-  --accent: #4656ff;
-  --accent-strong: #2f3be6;
-  --accent-glow: rgba(70, 86, 255, 0.2);
-  --input-bg: #f7f9fc;
-  --input-border: #d7dde8;
-  --button-bg: #4656ff;
-  --button-text: #f6f7ff;
-  --status-bg: #eef2fb;
-  --status-border: #dae2f2;
-  --shadow: 0 18px 45px rgba(31, 45, 61, 0.15);
-}
-
+/* ============================================================
+   4. RESET — Minimal box-model normalisation
+   ============================================================ */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+
+/* ============================================================
+   5. ROOT SIZE — Fixed popup dimensions (set by Chrome extension spec)
+   ============================================================ */
 html,
 body {
-  width: 392px;
+  width:  392px;
   height: 360px;
 }
 
+
+/* ============================================================
+   6. BODY — Background, font, and flex centering
+   ============================================================ */
 body {
   font-family: 'Rubik', system-ui, sans-serif;
   background: var(--bg);
-  background-image: var(--bg-glow);
+  background-image: var(--bg-glow); /* layered ambient glow on top of base bg */
   color: var(--text);
   display: flex;
   justify-content: center;
   align-items: stretch;
+  /* Smooth colour transition when toggling themes */
   transition: background-color 0.35s ease, color 0.35s ease;
 }
 
+
+/* ============================================================
+   7. APP SHELL — Full-height flex column: card + footer
+   ============================================================ */
 .app {
   width: 100%;
   height: 100%;
   padding: 12px 14px 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 8px; /* gap between the card and the footer */
 }
 
+
+/* ============================================================
+   8. CARD — Rounded surface that contains header + content
+   ============================================================ */
 .card {
-  flex: 1;
+  flex: 1; /* takes up all space not used by the footer */
   background: var(--card-bg);
   border: 1px solid var(--card-border);
   border-radius: 18px;
   padding: 12px 12px 14px;
   box-shadow: var(--shadow);
   position: relative;
-  overflow: hidden;
+  overflow: hidden; /* clips any child glow/blur effects at the border-radius */
   transition: background-color 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
 }
 
+
+/* ============================================================
+   9. TOP BAR — 3-column grid: [toggle] [brand] [spacer]
+   The spacer mirrors the toggle width to keep the brand centred.
+   ============================================================ */
 .top-bar {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -103,23 +175,33 @@ body {
   margin-bottom: 12px;
 }
 
+/* Brand area (logo + subtitle) — centred in the middle column */
 .brand {
   text-align: center;
-  min-width: 0;
+  min-width: 0; /* allows text to truncate inside a narrow grid cell */
 }
 
+/* Invisible placeholder matching the theme-toggle size to balance the grid */
 .top-bar-spacer {
   width: 34px;
   height: 34px;
 }
 
+
+/* ============================================================
+   10. LOGO & SUBTITLE
+   ============================================================ */
+
+/* Wrapper centres the logo image horizontally */
 .title {
   display: flex;
   justify-content: center;
   align-items: center;
-  line-height: 0;
+  line-height: 0; /* removes phantom whitespace below inline images */
 }
 
+/* Logo is sized by JS (syncLogoWidthToSubtitle) — auto height preserves aspect ratio.
+   The slight scale-up gives a bit more visual presence without clipping layout. */
 .title-logo {
   width: auto;
   max-width: 100%;
@@ -129,14 +211,21 @@ body {
   transform-origin: center;
 }
 
+/* Tagline below the logo */
 .subtitle {
   font-size: 13px;
   color: var(--muted);
   margin-top: 2px;
   letter-spacing: 0.1px;
-  white-space: nowrap;
+  white-space: nowrap; /* prevents wrapping in narrow containers */
 }
 
+
+/* ============================================================
+   11. THEME TOGGLE SWITCH — Custom pill-shaped checkbox
+   ============================================================ */
+
+/* Outer label acts as the clickable hit target */
 .theme-switch {
   position: relative;
   width: 46px;
@@ -147,12 +236,14 @@ body {
   cursor: pointer;
 }
 
+/* Hide the native checkbox — we use the custom track+thumb instead */
 .theme-switch input {
   opacity: 0;
   width: 0;
   height: 0;
 }
 
+/* Pill-shaped track */
 .switch-track {
   width: 46px;
   height: 26px;
@@ -165,36 +256,45 @@ body {
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
+/* Circular thumb that slides left ↔ right */
 .switch-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 12px var(--accent-glow);
-  transform: translateX(0);
+  box-shadow: 0 0 12px var(--accent-glow); /* soft accent glow */
+  transform: translateX(0);               /* default: left (dark mode) */
   transition: transform 0.3s ease, background-color 0.3s ease;
 }
 
+/* Track tint when checked (light mode) */
 .theme-switch input:checked + .switch-track {
   background: rgba(70, 86, 255, 0.18);
 }
 
+/* Slide thumb to the right when checked (light mode) */
 .theme-switch input:checked + .switch-track .switch-thumb {
   transform: translateX(20px);
 }
 
+
+/* ============================================================
+   12. CONTENT SECTION — Vertical stack of form elements
+   ============================================================ */
 .content {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+/* Individual form field wrapper (label text + input) */
 .field {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
+/* Small uppercase label above the input */
 .label {
   font-size: 12px;
   color: var(--muted);
@@ -202,6 +302,10 @@ body {
   text-transform: uppercase;
 }
 
+
+/* ============================================================
+   13. INPUT FIELD
+   ============================================================ */
 input {
   width: 100%;
   padding: 12px 12px;
@@ -216,6 +320,7 @@ input {
   text-align: center;
 }
 
+/* Focus ring — accent-coloured border + soft halo */
 input:focus {
   outline: none;
   border-color: var(--accent);
@@ -223,16 +328,22 @@ input:focus {
   text-align: center;
 }
 
+/* Centred placeholder text */
 input::placeholder {
   color: rgba(169, 178, 193, 0.7);
   text-align: center;
 }
 
+
+/* ============================================================
+   14. PRIMARY BUTTON — Connect/submit action
+   ============================================================ */
 .primary {
   width: 100%;
   padding: 12px 12px;
   border-radius: 12px;
   border: none;
+  /* Diagonal gradient using accent tokens */
   background: linear-gradient(120deg, var(--accent), var(--accent-strong));
   color: var(--button-text);
   font-size: 15px;
@@ -243,16 +354,22 @@ input::placeholder {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* Subtle lift on hover to give a "pressable" feel */
 .primary:hover {
   transform: translateY(-1px);
   box-shadow: 0 14px 30px rgba(85, 96, 255, 0.4);
 }
 
+/* z-index on inner <span> so it stays above any future pseudo-element overlays */
 .primary span {
   position: relative;
   z-index: 1;
 }
 
+
+/* ============================================================
+   15. STATUS BOX — Displays login feedback messages
+   ============================================================ */
 .status {
   min-height: 36px;
   padding: 10px 12px;
@@ -269,29 +386,46 @@ input::placeholder {
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
+/* Hide the box entirely when there's no message (no empty ghost box) */
 .status:empty {
   background: transparent;
   border-color: transparent;
 }
 
+
+/* ============================================================
+   16. KEEP-ALIVE STATUS — Fades in after background.js confirms
+       the keep-alive alarm has been registered.
+   ============================================================ */
 .keep-alive-status {
   margin-top: 4px;
   text-align: center;
   color: var(--muted);
   font-size: inherit;
   font-family: inherit;
-  opacity: 0;
+  opacity: 0; /* hidden by default */
   transition: opacity 0.6s ease;
 }
 
+/* JS adds this class to trigger the fade-in */
 .keep-alive-status.visible {
   opacity: 1;
 }
 
+
+/* ============================================================
+   17. UTILITY
+   ============================================================ */
+
+/* Hard-hide helper — overrides all display values */
 .hidden {
   display: none !important;
 }
 
+
+/* ============================================================
+   18. FOOTER — Credits, feedback link, version badge
+   ============================================================ */
 .footer {
   display: flex;
   align-items: center;
@@ -305,16 +439,19 @@ input::placeholder {
   text-align: center;
 }
 
+/* Footer links inherit text colour and remove underline by default */
 .footer a {
   color: var(--text);
   text-decoration: none;
   font-weight: 500;
 }
 
+/* Underline on hover for affordance */
 .footer a:hover {
   text-decoration: underline;
 }
 
+/* Prevent the version badge from ever wrapping onto its own line */
 .footer-version {
   white-space: nowrap;
 }
