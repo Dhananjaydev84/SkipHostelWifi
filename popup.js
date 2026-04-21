@@ -116,65 +116,57 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(syncLogoWidthToSubtitle, 0);
   }
   window.addEventListener("resize", syncLogoWidthToSubtitle);
-});
 
-// ============================================================
-// Connect button — validates UID, calls doLogin() (auth.js),
-// saves the UID, displays feedback, and kicks off keep-alive
-// ============================================================
-document.getElementById("submit").onclick = async () => {
-  const userId = document.getElementById("uid").value.trim();
-  const output = document.getElementById("output");
+  // ============================================================
+  // Connect button — validates UID, calls doLogin() (auth.js),
+  // saves the UID, displays feedback, and kicks off keep-alive
+  // ============================================================
+  document.getElementById("submit").onclick = async () => {
+    document.getElementById("keepAliveStatus").textContent = "";
+    document.getElementById("keepAliveStatus").classList.remove("visible");
 
-  // Guard: require a non-empty UID before attempting login
-  if (userId === "") {
-    output.innerText = "Error: Please enter your UID";
-    return;
-  }
+    const userId = document.getElementById("uid").value.trim();
+    const output = document.getElementById("output");
 
-  // Persist the UID so it's pre-filled next time the popup opens
-  chrome.storage.local.set({ savedUID: userId });
-  output.innerText = "Connecting...";
-
-  try {
-    // doLogin() is defined in auth.js and handles the Cyberoam/Sophos POST
-    const result = await doLogin(userId);
-
-    if (result && result.ok) {
-      output.innerText = "Connected successfully!";
-      // Tell background.js to start the keep-alive alarm
-      chrome.runtime.sendMessage({ action: "startKeepAlive" });
-    } else {
-      output.innerText = (result && result.message) || "Login failed.";
-    }
-  } catch (err) {
-    // Distinguish timeout vs network unavailable vs unexpected errors
-    if (err.name === "AbortError") {
-      output.innerText = "Timed out. Check your connection.";
-    } else if (err.message && err.message.includes("Failed to fetch")) {
-      output.innerText = "Already connected or portal unreachable.";
-    } else {
-      output.innerText = "Error: " + (err.message || err.name || String(err));
-    }
-  }
-};
-
-// ============================================================
-// Keep-alive status listener
-// background.js sends a "keepAliveStatus" message after the
-// alarm fires; this fades in a short confirmation in the popup.
-// ============================================================
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.action === "keepAliveStatus") {
-    const el = document.getElementById("keepAliveStatus");
-
-    if (message.status === "ok") {
-      el.textContent = "Keep alive initialised";
-    } else {
-      el.textContent = "Error in Keep alive";
+    // Guard: require a non-empty UID before attempting login
+    if (userId === "") {
+      output.innerText = "Error: Please enter your UID";
+      return;
     }
 
-    // Add "visible" class to trigger the CSS opacity fade-in transition
-    el.classList.add("visible");
-  }
+    // Persist the UID so it's pre-filled next time the popup opens
+    chrome.storage.local.set({ savedUID: userId });
+    output.innerText = "Connecting...";
+
+    try {
+      // doLogin() is defined in auth.js and handles the Cyberoam/Sophos POST
+      const result = await doLogin(userId);
+
+      if (result && result.ok) {
+        output.innerText = "Connected successfully!";
+        // Tell background.js to start the keep-alive alarm
+        chrome.runtime.sendMessage({ action: "startKeepAlive" }, (response) => {
+          const el = document.getElementById("keepAliveStatus");
+          if (response && response.started) {
+            el.textContent = "Keep alive initialised";
+          } else {
+            el.textContent = "Error in Keep alive";
+          }
+          // Add "visible" class to trigger the CSS opacity fade-in transition
+          el.classList.add("visible");
+        });
+      } else {
+        output.innerText = (result && result.message) || "Login failed.";
+      }
+    } catch (err) {
+      // Distinguish timeout vs network unavailable vs unexpected errors
+      if (err.name === "AbortError") {
+        output.innerText = "Timed out. Check your connection.";
+      } else if (err.message && err.message.includes("Failed to fetch")) {
+        output.innerText = "Already connected or portal unreachable.";
+      } else {
+        output.innerText = "Error: " + (err.message || err.name || String(err));
+      }
+    }
+  };
 });

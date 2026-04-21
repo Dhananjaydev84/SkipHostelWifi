@@ -81,8 +81,8 @@
       }
 
       // Fallback: command was sent but no recognisable keyword in response.
-      // Treat as success since the portal didn't explicitly reject it.
-      return { ok: true, message: "Command sent" };
+      // Treat as failure since we can't confirm success.
+      return { ok: false, message: "Unexpected response. Try again." };
 
     } catch (err) {
       clearTimeout(timer); // ensure timer is always cleared
