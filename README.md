@@ -1,51 +1,51 @@
-# WiFi Automation — Sanjoe
+# SkipHostelWifi
 
-Automates the WiFi login process for **Rajagiri Men’s Hostel (Sanjoe)** to avoid repeated manual authentication.
+One-click WiFi authentication for Rajagiri hostels and campus networks.
 
----
+SkipHostelWifi is a Chrome/Brave/Chromium extension that saves you from repeatedly opening the captive portal and logging in manually. Enter your User ID once, press **Connect**, and the extension submits the login request to the hostel/campus WiFi portal.
 
-## Setup (First Time)
+## Current Status
 
-1. Open **Chrome / Brave / Chromium-based browser**
-2. Enable **Developer Mode** in Extensions
-3. Click **Load unpacked**
-4. Select this project folder
+This extension is currently distributed as an **unpacked extension**.
 
----
+A Chrome Web Store link will be added later.
 
-##  How to Use
+## Setup
 
-1. Make sure you are connected to **SANJO-1** WiFi
-   *(Currently works only on this network)*
-2. Enter your **User ID** inside the extension.
-3. Press **Connect**.
+1. Download or clone this repository.
+2. Open your Chromium-based browser.
+3. Go to `chrome://extensions`.
+4. Turn on **Developer mode**.
+5. Click **Load unpacked**.
+6. Select the project folder that contains `manifest.json`.
+7. Pin the extension if you want quick access from the toolbar.
 
-The login should complete within a second.
-If it doesn’t, try pressing **Connect** again.
+Keep this project folder on your device after loading it. If you delete or move the folder, the unpacked extension may stop working until you load it again.
 
----
+## How To Use
 
-##  Privacy
+1. Connect to the supported Rajagiri hostel/campus WiFi network.
+2. Open the SkipHostelWifi extension.
+3. Enter your **User ID**.
+4. Press **Connect**.
 
-Your User ID is **stored locally on your device only**.
-This project does **not** collect, access, or transmit your credentials anywhere.
+The login should complete quickly. Your User ID is stored locally so reconnecting is faster the next time.
 
----
+## Privacy
 
-##  Current Features
+Your User ID is stored locally on your device.
 
-* One-click WiFi authentication
-* Local credential storage
-* Fast reconnect support
+This extension does not send your ID to any third-party server; it only submits it to the hostel/campus login portal.
 
----
+For the full privacy policy, refer to [privacy-policy.html](privacy-policy.html).
 
-##  Future Plans
+## Features
 
-* Editable portal address
-* Improved connection reliability
-* UI improvements
+- One-click WiFi authentication
+- Local User ID storage
+- Fast reconnect support
+- Works with Rajagiri hostel and campus WiFi login portals
 
----
+## Credits
 
-Built to make hostel WiFi slightly less annoying :)
+Built by Dhananjay Dev and Arjun Satheesh
