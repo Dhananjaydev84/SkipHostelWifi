@@ -1,4 +1,4 @@
-# WiFi Automation — Sanjoe
+# SkipHostelWifi
 
 Automates the WiFi login process for **Rajagiri Men’s Hostel (Sanjoe)** to avoid repeated manual authentication.
 
