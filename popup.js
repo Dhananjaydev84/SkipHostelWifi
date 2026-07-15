@@ -2,7 +2,6 @@
 // popup.js — UI logic for the SkipHostelWifi extension popup
 // Responsibilities:
 //   • Apply and persist the dark/light theme
-//   • Sync the logo width to match the subtitle text width
 //   • Handle the Connect button click → delegates to doLogin() in auth.js
 //   • Listen for keep-alive status messages from background.js
 // ============================================================
@@ -28,22 +27,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (nextSrc && logo.getAttribute("src") !== nextSrc) {
       logo.setAttribute("src", nextSrc);
     }
-  };
-
-  // ---------------------------------------------------------------------------
-  // Set the logo width equal to the subtitle width (+8px breathing room)
-  // so both line up visually under the brand area.
-  // Caps at the brand container width to avoid overflow.
-  // ---------------------------------------------------------------------------
-  const syncLogoWidthToSubtitle = () => {
-    const subtitle = document.querySelector(".brand .subtitle");
-    const logo     = document.querySelector(".title-logo");
-    const brand    = document.querySelector(".brand");
-    if (!subtitle || !logo || !brand) return;
-
-    const targetWidth  = Math.ceil(subtitle.getBoundingClientRect().width + 8);
-    const maxSafeWidth = Math.floor(brand.getBoundingClientRect().width);
-    logo.style.width   = `${Math.min(targetWidth, maxSafeWidth)}px`;
   };
 
   // ---------------------------------------------------------------------------
@@ -89,7 +72,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const theme = data.theme || cachedTheme || "dark";
     setTheme(theme);
-    syncLogoWidthToSubtitle();
   });
 
   // ---------------------------------------------------------------------------
@@ -101,21 +83,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const nextTheme = themeToggle.checked ? "light" : "dark";
       setTheme(nextTheme);
       chrome.storage.local.set({ theme: nextTheme }); // sync to background/other pages
-      syncLogoWidthToSubtitle();
     });
   }
-
-  // ---------------------------------------------------------------------------
-  // Sync logo width after fonts have fully loaded (avoids wrong measure on boot)
-  // Falls back to a zero-delay setTimeout if the Fonts API isn't available.
-  // Also re-syncs on window resize.
-  // ---------------------------------------------------------------------------
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(syncLogoWidthToSubtitle);
-  } else {
-    setTimeout(syncLogoWidthToSubtitle, 0);
-  }
-  window.addEventListener("resize", syncLogoWidthToSubtitle);
 
   // ============================================================
   // Connect button — validates UID, calls doLogin() (auth.js),

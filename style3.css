@@ -175,10 +175,14 @@ body {
   margin-bottom: 12px;
 }
 
-/* Brand area (logo + subtitle) — centred in the middle column */
+/* Brand area (logo + subtitle) — centred in the middle column.
+   Uses CSS grid so the subtitle's intrinsic text width sizes the column
+   and the logo fills it via width:100%, removing the need for JS measurement. */
 .brand {
-  text-align: center;
-  min-width: 0; /* allows text to truncate inside a narrow grid cell */
+  display: grid;
+  justify-items: center;
+  justify-self: center;
+  min-width: 0;
 }
 
 /* Invisible placeholder matching the theme-toggle size to balance the grid */
@@ -192,19 +196,22 @@ body {
    10. LOGO & SUBTITLE
    ============================================================ */
 
-/* Wrapper centres the logo image horizontally */
+/* Wrapper centres the logo image horizontally.
+   width:100% fills the grid column (whose width is set by the subtitle text).
+   Horizontal padding adds 8 px total breathing room (replicates old JS +8 px). */
 .title {
+  width: 100%;
+  padding: 0 4px;
   display: flex;
   justify-content: center;
   align-items: center;
   line-height: 0; /* removes phantom whitespace below inline images */
 }
 
-/* Logo is sized by JS (syncLogoWidthToSubtitle) — auto height preserves aspect ratio.
+/* Logo fills the .title wrapper; auto height preserves aspect ratio.
    The slight scale-up gives a bit more visual presence without clipping layout. */
 .title-logo {
-  width: auto;
-  max-width: 100%;
+  width: 100%;
   height: auto;
   display: block;
   transform: scale(1.16);
