@@ -7,21 +7,19 @@ const log = (msg, ...args) => {
   console.log(`[SkipHostelWifi ${time}] ${msg}`, ...args);
 };
 
-// ── Alarm names ──────────────────────────────────────────────
+// ── Alarm name ──────────────────────────────────────────────
 const PORTAL_ALARM = "keepPortalAlive";
-const SW_ALARM     = "keepSWAlive";
 
-// ── Alarm creation helper ────────────────────────────────────
-async function createKeepAliveAlarms() {
-  // Clear only the keep-alive alarms — prevents duplicates if the
-  // user clicks Connect more than once, without affecting other alarms.
+// ── Alarm creation helper ────────────────────────────────────────
+async function createKeepAliveAlarm() {
+  // Clear existing portal alarm — prevents duplicates if the
+  // user clicks Connect more than once.
   await chrome.alarms.clear(PORTAL_ALARM);
-  await chrome.alarms.clear(SW_ALARM);
 
+  // Re-authenticate every 4 minutes to keep the portal session alive.
   chrome.alarms.create(PORTAL_ALARM, { periodInMinutes: 4 });
-  chrome.alarms.create(SW_ALARM,     { periodInMinutes: 0.33 });
 
-  log("Keep-alive alarms created.");
+  log("Portal keep-alive alarm created.");
 }
 
 // ── Alarm listener ───────────────────────────────────────────
@@ -35,12 +33,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     } else {
       log("WARN: Portal ping skipped — no savedUID.");
     }
-    return;
-  }
-
-  if (alarm.name === SW_ALARM) {
-    // Heartbeat — just keeps the service worker awake.
-    log("SW heartbeat.");
   }
 });
 
@@ -63,7 +55,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         if (result && result.ok) {
           // Persist UID only after a successful login
           await chrome.storage.local.set({ savedUID: userId });
-          await createKeepAliveAlarms();
+          await createKeepAliveAlarm();
           sendResponse({ ok: true, message: result.message, keepAlive: true });
         } else {
           sendResponse(result || { ok: false, message: "Login failed." });
@@ -77,7 +69,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.action === "startKeepAlive") {
-    createKeepAliveAlarms()
+    createKeepAliveAlarm()
       .then(() => {
         sendResponse({ started: true });
       })
@@ -89,12 +81,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.action === "stopKeepAlive") {
-    Promise.all([
-      chrome.alarms.clear(PORTAL_ALARM),
-      chrome.alarms.clear(SW_ALARM)
-    ])
+    chrome.alarms.clear(PORTAL_ALARM)
       .then(() => {
-        log("Keep-alive alarms cleared.");
+        log("Portal keep-alive alarm cleared.");
         sendResponse({ stopped: true });
       })
       .catch((err) => {
