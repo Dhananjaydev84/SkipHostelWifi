@@ -99,7 +99,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Guard: require a non-empty UID before sending to background
     if (userId === "") {
-      output.innerText = "Error: Please enter your UID";
+      output.innerText = "Error: Enter your UID";
       return;
     }
 

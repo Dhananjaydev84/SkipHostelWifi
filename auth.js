@@ -54,28 +54,21 @@ async function doLogin(userId) {
       return { ok: false, message: "Server: " + response.status };
     }
 
-    // Parse the portal's plain-text XML response for known status keywords
+    // Parse the portal's XML response
     const resultText = await response.text();
     console.log("[SkipHostelWifi] Response:", resultText);
+
+    // Try to extract the <message> content from the portal XML
+    const msgMatch = resultText.match(/<message[^>]*>([\s\S]*?)<\/message>/i);
+    const portalMsg = msgMatch ? msgMatch[1].trim() : null;
 
     // Success indicators returned by Cyberoam/Sophos
     if (resultText.includes("successfully") || resultText.includes("LIVE")) {
       return { ok: true, message: "Connected" };
     }
 
-    // Data cap exceeded — user needs to buy more quota
-    if (resultText.toLowerCase().includes("limit reached")) {
-      return { ok: false, message: "Data limit reached" };
-    }
-
-    // Invalid credentials or explicit failure message
-    if (resultText.toLowerCase().includes("failed") || resultText.includes("Invalid")) {
-      return { ok: false, message: "Check ID/Password" };
-    }
-
-    // Fallback: command was sent but no recognisable keyword in response.
-    // Treat as failure since we can't confirm success.
-    return { ok: false, message: "Unexpected response. Try again." };
+    // Any failure — use the portal's own words, or a generic fallback
+    return { ok: false, message: portalMsg || "Login failed" };
 
   } catch (err) {
     clearTimeout(timer); // ensure timer is always cleared
