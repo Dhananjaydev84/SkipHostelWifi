@@ -13,9 +13,10 @@ const SW_ALARM     = "keepSWAlive";
 
 // ── Alarm creation helper ────────────────────────────────────
 async function createKeepAliveAlarms() {
-  // Wipe any existing alarms first — prevents duplicates if the
-  // user clicks Connect more than once.
-  await chrome.alarms.clearAll();
+  // Clear only the keep-alive alarms — prevents duplicates if the
+  // user clicks Connect more than once, without affecting other alarms.
+  await chrome.alarms.clear(PORTAL_ALARM);
+  await chrome.alarms.clear(SW_ALARM);
 
   chrome.alarms.create(PORTAL_ALARM, { periodInMinutes: 4 });
   chrome.alarms.create(SW_ALARM,     { periodInMinutes: 0.33 });
@@ -88,9 +89,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 
   if (msg.action === "stopKeepAlive") {
-    chrome.alarms.clearAll()
+    Promise.all([
+      chrome.alarms.clear(PORTAL_ALARM),
+      chrome.alarms.clear(SW_ALARM)
+    ])
       .then(() => {
-        log("All alarms cleared.");
+        log("Keep-alive alarms cleared.");
         sendResponse({ stopped: true });
       })
       .catch((err) => {
