@@ -1,4 +1,5 @@
-// Background service worker — imports auth.js for shared doLogin().
+// Background service worker — owns login execution and keep-alive alarms.
+// Imports auth.js for the shared doLogin() function.
 importScripts("auth.js");
 
 const log = (msg, ...args) => {
@@ -44,6 +45,36 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 // ── Message handlers ─────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+
+  // --- Login: runs the network request in the service worker so it
+  //     survives the popup closing. Saves UID and starts keep-alive
+  //     on success, all in a single round-trip message.
+  if (msg.action === "login") {
+    const userId = msg.userId && msg.userId.trim();
+    if (!userId) {
+      sendResponse({ ok: false, message: "No UID" });
+      return true;
+    }
+
+    (async () => {
+      try {
+        const result = await doLogin(userId);
+        if (result && result.ok) {
+          // Persist UID only after a successful login
+          await chrome.storage.local.set({ savedUID: userId });
+          await createKeepAliveAlarms();
+          sendResponse({ ok: true, message: result.message, keepAlive: true });
+        } else {
+          sendResponse(result || { ok: false, message: "Login failed." });
+        }
+      } catch (err) {
+        log("ERROR: login failed:", err);
+        sendResponse({ ok: false, message: err.message || String(err) });
+      }
+    })();
+    return true; // keep message channel open for async response
+  }
+
   if (msg.action === "startKeepAlive") {
     createKeepAliveAlarms()
       .then(() => {

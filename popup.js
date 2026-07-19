@@ -2,8 +2,8 @@
 // popup.js — UI logic for the SkipHostelWifi extension popup
 // Responsibilities:
 //   • Apply and persist the dark/light theme
-//   • Handle the Connect button click → delegates to doLogin() in auth.js
-//   • Listen for keep-alive status messages from background.js
+//   • Handle the Connect button click → delegates to background.js via message
+//   • Display login status and keep-alive feedback
 // ============================================================
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -87,55 +87,41 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ============================================================
-  // Connect button — validates UID, calls doLogin() (auth.js),
-  // saves the UID, displays feedback, and kicks off keep-alive
+  // Connect button — sends login request to background.js,
+  // which owns the network call so it survives popup closure.
   // ============================================================
-  document.getElementById("submit").onclick = async () => {
+  document.getElementById("submit").onclick = () => {
     document.getElementById("keepAliveStatus").textContent = "";
     document.getElementById("keepAliveStatus").classList.remove("visible");
 
     const userId = document.getElementById("uid").value.trim();
     const output = document.getElementById("output");
 
-    // Guard: require a non-empty UID before attempting login
+    // Guard: require a non-empty UID before sending to background
     if (userId === "") {
       output.innerText = "Error: Please enter your UID";
       return;
     }
 
-    // Persist the UID so it's pre-filled next time the popup opens
-    chrome.storage.local.set({ savedUID: userId });
     output.innerText = "Connecting...";
 
-    try {
-      // doLogin() is defined in auth.js and handles the Cyberoam/Sophos POST
-      const result = await doLogin(userId);
+    chrome.runtime.sendMessage({ action: "login", userId }, (result) => {
+      // Handle the case where the service worker is unreachable
+      if (chrome.runtime.lastError) {
+        output.innerText = "Extension error. Try reloading.";
+        return;
+      }
 
       if (result && result.ok) {
         output.innerText = "Connected successfully!";
-        // Tell background.js to start the keep-alive alarm
-        chrome.runtime.sendMessage({ action: "startKeepAlive" }, (response) => {
-          const el = document.getElementById("keepAliveStatus");
-          if (response && response.started) {
-            el.textContent = "Keep alive initialised";
-          } else {
-            el.textContent = "Error in Keep alive";
-          }
-          // Add "visible" class to trigger the CSS opacity fade-in transition
-          el.classList.add("visible");
-        });
+        const el = document.getElementById("keepAliveStatus");
+        if (result.keepAlive) {
+          el.textContent = "Keep alive initialised";
+        }
+        el.classList.add("visible");
       } else {
         output.innerText = (result && result.message) || "Login failed.";
       }
-    } catch (err) {
-      // Distinguish timeout vs network unavailable vs unexpected errors
-      if (err.name === "AbortError") {
-        output.innerText = "Timed out. Check your connection.";
-      } else if (err.message && err.message.includes("Failed to fetch")) {
-        output.innerText = "Already connected or portal unreachable.";
-      } else {
-        output.innerText = "Error: " + (err.message || err.name || String(err));
-      }
-    }
+    });
   };
 });
