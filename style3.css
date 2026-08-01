@@ -87,15 +87,10 @@
 
 
 /* ============================================================
-   3. TYPOGRAPHY — Local Rubik variable font
-   Loaded locally to avoid network requests inside the extension.
+   3. TYPOGRAPHY — System font stack
+   Uses the OS default UI font. No external font files needed,
+   which avoids missing-file warnings and keeps the extension lean.
    ============================================================ */
-@font-face {
-  font-family: 'Rubik';
-  src: url('fonts/Rubik-VariableFont_wght.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 100 900; /* full variable range */
-}
 
 
 /* ============================================================
@@ -122,7 +117,7 @@ body {
    6. BODY — Background, font, and flex centering
    ============================================================ */
 body {
-  font-family: 'Rubik', system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   background-image: var(--bg-glow); /* layered ambient glow on top of base bg */
   color: var(--text);
@@ -322,7 +317,7 @@ input {
   color: var(--text);
   font-size: 14px;
   font-weight: 500;
-  font-family: 'Rubik', sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
   text-align: center;
 }
@@ -355,7 +350,7 @@ input::placeholder {
   color: var(--button-text);
   font-size: 15px;
   font-weight: 600;
-  font-family: 'Rubik', sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(85, 96, 255, 0.3);
   transition: transform 0.2s ease, box-shadow 0.2s ease;

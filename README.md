@@ -33,9 +33,9 @@ The login should complete quickly. Your User ID is stored locally so reconnectin
 
 ## Privacy
 
-Your User ID is stored locally on your device.
+Your User ID is stored locally on your device and is sent only to the supported hostel/campus captive portal for login. No data is sent to any third-party server.
 
-This extension does not send your ID to any third-party server; it only submits it to the hostel/campus login portal.
+On this network, the login password is the same as your User ID — the extension does not ask for or store a separate password.
 
 For the full privacy policy, refer to [privacy-policy.html](privacy-policy.html).
 
