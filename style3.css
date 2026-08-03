@@ -1,14 +1,12 @@
 /* ============================================================
    style3.css — Popup UI stylesheet for SkipHostelWifi
-   Covers: design tokens, typography, layout, theme toggle,
+   Covers: design tokens, typography, layout,
            form controls, status area, keep-alive indicator, footer
    ============================================================ */
 
 
 /* ============================================================
-   1. DESIGN TOKENS — Dark theme (default)
-   All colours and shadows are driven by CSS custom properties
-   so a single class swap (.light-theme) rewrites the whole UI.
+   1. DESIGN TOKENS
    ============================================================ */
 :root {
   color-scheme: dark;
@@ -50,41 +48,6 @@
 }
 
 
-/* ============================================================
-   2. DESIGN TOKENS — Light theme override
-   Applied when JS toggles the .light-theme class on <html>.
-   ============================================================ */
-.light-theme {
-  color-scheme: light;
-
-  --bg: #f3f5f9;
-  --bg-glow:
-    radial-gradient(140px 120px at 10%  10%, rgba(112, 134, 255, 0.18), transparent 60%),
-    radial-gradient(160px 140px at 90%  20%, rgba( 94, 205, 255, 0.18), transparent 60%),
-    radial-gradient(140px 120px at 50%  90%, rgba(255, 175,  90, 0.12), transparent 65%);
-
-  --card-bg:     #ffffff;
-  --card-border: #e2e7f0;
-
-  --text:  #161c25;
-  --muted: #5f6c7c;
-
-  --accent:        #4656ff;
-  --accent-strong: #2f3be6;
-  --accent-glow:   rgba(70, 86, 255, 0.20);
-
-  --input-bg:     #f7f9fc;
-  --input-border: #d7dde8;
-
-  --button-bg:   #4656ff;
-  --button-text: #f6f7ff;
-
-  --status-bg:     #eef2fb;
-  --status-border: #dae2f2;
-
-  --shadow: 0 18px 45px rgba(31, 45, 61, 0.15);
-}
-
 
 /* ============================================================
    3. TYPOGRAPHY — System font stack
@@ -124,8 +87,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: stretch;
-  /* Smooth colour transition when toggling themes */
-  transition: background-color 0.35s ease, color 0.35s ease;
+
 }
 
 
@@ -159,31 +121,22 @@ body {
 
 
 /* ============================================================
-   9. TOP BAR — 3-column grid: [toggle] [brand] [spacer]
-   The spacer mirrors the toggle width to keep the brand centred.
+   9. TOP BAR — Centred branding
    ============================================================ */
 .top-bar {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  display: flex;
+  justify-content: center;
   align-items: center;
-  gap: 10px;
   margin-bottom: 12px;
 }
 
-/* Brand area (logo + subtitle) — centred in the middle column.
+/* Brand area (logo + subtitle) — centred.
    Uses CSS grid so the subtitle's intrinsic text width sizes the column
    and the logo fills it via width:100%, removing the need for JS measurement. */
 .brand {
   display: grid;
   justify-items: center;
-  justify-self: center;
   min-width: 0;
-}
-
-/* Invisible placeholder matching the theme-toggle size to balance the grid */
-.top-bar-spacer {
-  width: 34px;
-  height: 34px;
 }
 
 
@@ -209,7 +162,7 @@ body {
   width: 100%;
   height: auto;
   display: block;
-  transform: scale(1.16);
+  transform: scale(0.93);
   transform-origin: center;
 }
 
@@ -222,62 +175,6 @@ body {
   white-space: nowrap; /* prevents wrapping in narrow containers */
 }
 
-
-/* ============================================================
-   11. THEME TOGGLE SWITCH — Custom pill-shaped checkbox
-   ============================================================ */
-
-/* Outer label acts as the clickable hit target */
-.theme-switch {
-  position: relative;
-  width: 46px;
-  height: 26px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  cursor: pointer;
-}
-
-/* Hide the native checkbox — we use the custom track+thumb instead */
-.theme-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-/* Pill-shaped track */
-.switch-track {
-  width: 46px;
-  height: 26px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--card-border);
-  display: flex;
-  align-items: center;
-  padding: 3px;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-/* Circular thumb that slides left ↔ right */
-.switch-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 12px var(--accent-glow); /* soft accent glow */
-  transform: translateX(0);               /* default: left (dark mode) */
-  transition: transform 0.3s ease, background-color 0.3s ease;
-}
-
-/* Track tint when checked (light mode) */
-.theme-switch input:checked + .switch-track {
-  background: rgba(70, 86, 255, 0.18);
-}
-
-/* Slide thumb to the right when checked (light mode) */
-.theme-switch input:checked + .switch-track .switch-thumb {
-  transform: translateX(20px);
-}
 
 
 /* ============================================================
