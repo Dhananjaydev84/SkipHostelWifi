@@ -49,15 +49,10 @@
 
 
 
-/* ============================================================
-   3. TYPOGRAPHY — System font stack
-   Uses the OS default UI font. No external font files needed,
-   which avoids missing-file warnings and keeps the extension lean.
-   ============================================================ */
 
 
 /* ============================================================
-   4. RESET — Minimal box-model normalisation
+   2. RESET — Minimal box-model normalisation
    ============================================================ */
 * {
   margin: 0;
@@ -67,7 +62,7 @@
 
 
 /* ============================================================
-   5. ROOT SIZE — Fixed popup dimensions (set by Chrome extension spec)
+   3. ROOT SIZE — Fixed popup dimensions
    ============================================================ */
 html,
 body {
@@ -77,7 +72,7 @@ body {
 
 
 /* ============================================================
-   6. BODY — Background, font, and flex centering
+   4. BODY — Background, typography, and flex centering
    ============================================================ */
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -92,7 +87,7 @@ body {
 
 
 /* ============================================================
-   7. APP SHELL — Full-height flex column: card + footer
+   5. APP SHELL — Full-height flex column: card + footer
    ============================================================ */
 .app {
   width: 100%;
@@ -105,7 +100,7 @@ body {
 
 
 /* ============================================================
-   8. CARD — Rounded surface that contains header + content
+   6. CARD — Rounded surface that contains header + content
    ============================================================ */
 .card {
   flex: 1; /* takes up all space not used by the footer */
@@ -121,7 +116,7 @@ body {
 
 
 /* ============================================================
-   9. TOP BAR — Centred branding
+   7. TOP BAR — Centred branding
    ============================================================ */
 .top-bar {
   display: flex;
@@ -141,7 +136,7 @@ body {
 
 
 /* ============================================================
-   10. LOGO & SUBTITLE
+   8. LOGO & SUBTITLE
    ============================================================ */
 
 /* Wrapper centres the logo image horizontally.
@@ -178,7 +173,7 @@ body {
 
 
 /* ============================================================
-   12. CONTENT SECTION — Vertical stack of form elements
+   9. CONTENT SECTION — Vertical stack of form elements
    ============================================================ */
 .content {
   display: flex;
@@ -203,7 +198,7 @@ body {
 
 
 /* ============================================================
-   13. INPUT FIELD
+   10. INPUT FIELD
    ============================================================ */
 input {
   width: 100%;
@@ -235,7 +230,7 @@ input::placeholder {
 
 
 /* ============================================================
-   14. PRIMARY BUTTON — Connect/submit action
+   11. PRIMARY BUTTON — Connect/submit action
    ============================================================ */
 .primary {
   width: 100%;
@@ -267,7 +262,7 @@ input::placeholder {
 
 
 /* ============================================================
-   15. STATUS BOX — Displays login feedback messages
+   12. STATUS BOX — Displays login feedback messages
    ============================================================ */
 .status {
   min-height: 36px;
@@ -293,8 +288,7 @@ input::placeholder {
 
 
 /* ============================================================
-   16. KEEP-ALIVE STATUS — Fades in after background.js confirms
-       the keep-alive alarm has been registered.
+   13. KEEP-ALIVE STATUS — Fades in after keep-alive alarm starts
    ============================================================ */
 .keep-alive-status {
   margin-top: 4px;
@@ -313,7 +307,7 @@ input::placeholder {
 
 
 /* ============================================================
-   17. UTILITY
+   14. UTILITY
    ============================================================ */
 
 /* Hard-hide helper — overrides all display values */
@@ -323,7 +317,7 @@ input::placeholder {
 
 
 /* ============================================================
-   18. FOOTER — Credits, feedback link, version badge
+   15. FOOTER — Credits, feedback link, version badge
    ============================================================ */
 .footer {
   display: flex;

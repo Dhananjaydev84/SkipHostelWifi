@@ -1,7 +1,8 @@
 // ============================================================
 // popup.js — UI logic for the SkipHostelWifi extension popup
 // Responsibilities:
-//   • Handle the Connect button click → delegates to background.js via message
+//   • Restore saved UID on popup open
+//   • Handle Connect button click → delegates to background.js
 //   • Display login status and keep-alive feedback
 // ============================================================
 
