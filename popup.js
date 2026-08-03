@@ -9,6 +9,12 @@
 document.addEventListener("DOMContentLoaded", () => {
 
   // ---------------------------------------------------------------------------
+  // Display the extension version from manifest.json in the footer badge.
+  // ---------------------------------------------------------------------------
+  const manifest = chrome.runtime.getManifest();
+  document.getElementById("versionBadge").textContent = `v${manifest.version}`;
+
+  // ---------------------------------------------------------------------------
   // On popup open: restore saved UID.
   // ---------------------------------------------------------------------------
   chrome.storage.local.get(["savedUID"], (data) => {
