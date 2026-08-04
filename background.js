@@ -58,6 +58,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           await createKeepAliveAlarm();
           sendResponse({ ok: true, message: result.message, keepAlive: true });
         } else {
+          // Failed login — actively kill the portal session so the
+          // user loses internet (matches portal webpage behavior).
+          await doLogout(userId);
+          await chrome.alarms.clear(PORTAL_ALARM);
+          await chrome.storage.local.remove("savedUID");
+          log("Login failed — session killed, keep-alive stopped.");
           sendResponse(result || { ok: false, message: "Login failed." });
         }
       } catch (err) {
@@ -66,6 +72,32 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       }
     })();
     return true; // keep message channel open for async response
+  }
+
+  // --- Logout: signs out from the portal, clears saved UID,
+  //     and stops the keep-alive alarm.
+  if (msg.action === "logout") {
+    const userId = msg.userId && msg.userId.trim();
+    if (!userId) {
+      sendResponse({ ok: false, message: "No UID to sign out" });
+      return true;
+    }
+
+    (async () => {
+      try {
+        const result = await doLogout(userId);
+        if (result && result.ok) {
+          await chrome.storage.local.remove("savedUID");
+          await chrome.alarms.clear(PORTAL_ALARM);
+          log("Signed out and cleared keep-alive alarm.");
+        }
+        sendResponse(result || { ok: false, message: "Sign-out failed." });
+      } catch (err) {
+        log("ERROR: logout failed:", err);
+        sendResponse({ ok: false, message: err.message || String(err) });
+      }
+    })();
+    return true;
   }
 
   if (msg.action === "startKeepAlive") {

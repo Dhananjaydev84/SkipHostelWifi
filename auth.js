@@ -6,18 +6,41 @@
 // form fields are fixed for this network (192.168.0.66:8090).
 // ============================================================
 
-// Portal login endpoint (Cyberoam/Sophos standard path)
-const LOGIN_URL = "http://192.168.0.66:8090/login.xml";
+// Portal endpoints (Cyberoam/Sophos standard paths)
+const LOGIN_URL  = "http://192.168.0.66:8090/login.xml";
+const LOGOUT_URL = "http://192.168.0.66:8090/logout.xml";
 
 // Abort the request if it hangs longer than this (milliseconds)
 const LOGIN_TIMEOUT_MS = 30000; // 30 seconds
+
+// ----------------------------------------------------------
+// extractTag(xml, tagName)
+//
+// Extracts the text content of a given XML tag from a raw XML
+// string. Handles CDATA wrappers and decodes basic HTML
+// entities that the Cyberoam portal uses (&#39; &amp; &quot;).
+// Returns null if the tag is not found.
+// ----------------------------------------------------------
+function extractTag(xml, tagName) {
+  const re = new RegExp(
+    `<${tagName}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tagName}>`,
+    "i"
+  );
+  const match = xml.match(re);
+  if (!match) return null;
+  return match[1]
+    .trim()
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"');
+}
 
 // ----------------------------------------------------------
 // doLogin(userId)
 //
 // Attempts to authenticate the user against the captive portal.
 // Returns a plain object: { ok: boolean, message: string }
-//   ok: true  -> connected (or portal accepted the request)
+//   ok: true  -> connected (portal returned status LIVE)
 //   ok: false -> authentication failed or network error
 // ----------------------------------------------------------
 async function doLogin(userId) {
@@ -58,17 +81,24 @@ async function doLogin(userId) {
     const resultText = await response.text();
     console.log("[SkipHostelWifi] Response:", resultText);
 
-    // Try to extract the <message> content from the portal XML
-    const msgMatch = resultText.match(/<message[^>]*>([\s\S]*?)<\/message>/i);
-    const portalMsg = msgMatch ? msgMatch[1].trim() : null;
+    // Extract the <status> and <message> tags from the portal XML
+    const status    = extractTag(resultText, "status");
+    const portalMsg = extractTag(resultText, "message")
+      ?.replace(/{username}/g, uid);  // portal returns literal {username} — sub in real UID
 
-    // Success indicators returned by Cyberoam/Sophos
-    if (resultText.includes("successfully") || resultText.includes("LIVE")) {
-      return { ok: true, message: "Connected" };
+    // Branch on the portal's status tag value
+    if (status === "LIVE") {
+      return { ok: true, message: portalMsg || "Connected" };
+    }
+    if (status === "LOGIN") {
+      return { ok: false, message: portalMsg || "Login failed" };
+    }
+    if (status === "CHALLENGE") {
+      return { ok: false, message: portalMsg || "Unexpected challenge state — check portal manually" };
     }
 
-    // Any failure — use the portal's own words, or a generic fallback
-    return { ok: false, message: portalMsg || "Login failed" };
+    // Unrecognised or missing status tag
+    return { ok: false, message: portalMsg || "Unrecognized response from portal" };
 
   } catch (err) {
     clearTimeout(timer); // ensure timer is always cleared
@@ -79,6 +109,62 @@ async function doLogin(userId) {
     }
 
     // All other fetch errors (e.g., offline, DNS failure, CORS)
+    return { ok: false, message: "Network error. Make sure WiFi is on." };
+  }
+}
+
+// ----------------------------------------------------------
+// doLogout(username)
+//
+// Signs the user out of the captive portal.
+// Portal expects a POST to logout.xml with mode=193.
+// Returns a plain object: { ok: boolean, message: string }
+// ----------------------------------------------------------
+async function doLogout(username) {
+  if (!username || !username.trim()) {
+    return { ok: false, message: "No username to sign out" };
+  }
+
+  const body = new URLSearchParams({
+    mode:        "193",
+    username:    username.trim(),
+    a:           Date.now().toString(),
+    producttype: "0"
+  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LOGIN_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(LOGOUT_URL, {
+      method:  "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body:    body,
+      signal:  controller.signal
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      return { ok: false, message: "Server: " + res.status };
+    }
+
+    const resultText = await res.text();
+    console.log("[SkipHostelWifi] Logout response:", resultText);
+
+    const status    = extractTag(resultText, "status");
+    const portalMsg = extractTag(resultText, "message");
+
+    // Portal returns status=LOGIN when sign-out succeeds
+    return {
+      ok:      status === "LOGIN",
+      message: portalMsg || (status === "LOGIN" ? "Signed out" : "Sign-out failed")
+    };
+
+  } catch (err) {
+    clearTimeout(timer);
+    if (err.name === "AbortError") {
+      return { ok: false, message: "Timed out. Check your connection." };
+    }
     return { ok: false, message: "Network error. Make sure WiFi is on." };
   }
 }
