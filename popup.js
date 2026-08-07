@@ -44,11 +44,24 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ---------------------------------------------------------------------------
-  // On popup open: restore saved UID.
+  // On popup open: restore saved UID and connection state.
+  // If the keep-alive alarm is still running, the user is still connected —
+  // restore the "Sign Out" UI so it doesn't look like the extension crashed.
   // ---------------------------------------------------------------------------
   chrome.storage.local.get(["savedUID"], (data) => {
     if (data.savedUID) {
       uidInput.value = data.savedUID;
+
+      // Check if the keep-alive alarm is active → user is still connected
+      chrome.alarms.get("keepPortalAlive", (alarm) => {
+        if (alarm) {
+          setConnectedUI(true);
+          output.innerText = "Connected";
+          output.classList.remove("error");
+          keepAliveEl.textContent = "Keep alive active";
+          keepAliveEl.classList.add("visible");
+        }
+      });
     }
   });
 
