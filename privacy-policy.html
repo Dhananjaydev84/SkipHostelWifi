@@ -3,49 +3,267 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkipHostelWifi Privacy Policy</title>
+  <title>SkipHostelWifi — Privacy Policy</title>
   <style>
-    body {
-      max-width: 760px;
-      margin: 48px auto;
-      padding: 0 20px;
-      font-family: Arial, sans-serif;
-      line-height: 1.6;
-      color: #1f2933;
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    h1,
-    h2 {
-      line-height: 1.25;
+    body {
+      max-width: 720px;
+      margin: 56px auto;
+      padding: 0 24px 80px;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #1a1a2e;
+      background: #fafbfc;
     }
 
     h1 {
-      margin-bottom: 8px;
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
     }
 
     .updated {
-      color: #52606d;
-      margin-top: 0;
+      color: #6b7280;
+      font-size: 0.85rem;
+      margin-bottom: 36px;
+    }
+
+    h2 {
+      font-size: 1.15rem;
+      font-weight: 600;
+      margin-top: 32px;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    p, li {
+      margin-bottom: 10px;
+    }
+
+    ul {
+      padding-left: 22px;
+      margin-bottom: 14px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    code {
+      font-family: "Cascadia Code", "Fira Code", monospace;
+      font-size: 0.88em;
+      background: #f0f1f3;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 18px;
+      font-size: 0.92em;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+    }
+
+    th {
+      background: #f3f4f6;
+      font-weight: 600;
+    }
+
+    .highlight-box {
+      background: #eef6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin: 16px 0;
+      font-size: 0.93em;
+    }
+
+    a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      margin-top: 48px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 0.82rem;
+      color: #9ca3af;
     }
   </style>
 </head>
 <body>
-  <h1>SkipHostelWifi Privacy Policy</h1>
-  <p class="updated">Last updated: August 1, 2026</p>
 
-  <h2>What Data Is Stored</h2>
-  <p>SkipHostelWifi stores your User ID locally on your device using browser extension storage. No separate password is stored — on this network, the login password is the same as your User ID.</p>
+  <h1>SkipHostelWifi — Privacy Policy</h1>
+  <p class="updated">Last updated: August 4, 2026</p>
 
-  <h2>How Your Data Is Used</h2>
-  <p>Your User ID is stored locally on your device and is sent only to the supported Rajagiri hostel/campus captive portal to complete the WiFi login request. The extension does not send your data to any other server.</p>
+  <p>
+    SkipHostelWifi is a browser extension that automates WiFi login for Rajagiri (RSET) campus and hostel networks.
+    This policy explains exactly what data the extension handles, where it goes, and what it does <em>not</em> do.
+  </p>
 
-  <h2>Third-Party Sharing</h2>
-  <p>This extension does not share your data with any third party. Your User ID is transmitted only to the hostel/campus login portal over the local network.</p>
+  <!-- ─── 1. Data We Collect ─── -->
+  <h2>1. Data We Collect</h2>
+  <p>The extension collects <strong>one piece of information</strong> from you:</p>
+  <ul>
+    <li><strong>User ID</strong> — the campus/hostel WiFi login credential you type into the extension popup.</li>
+  </ul>
+  <p>That is it. We do not collect names, email addresses, browsing history, analytics, telemetry, crash reports, or any other personal information.</p>
 
-  <h2>Data Collection</h2>
-  <p>SkipHostelWifi does not collect analytics, tracking data, browsing history, or personal information beyond the User ID you enter for WiFi authentication.</p>
+  <!-- ─── 2. How Your Data Is Stored ─── -->
+  <h2>2. How Your Data Is Stored</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Storage Location</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>User ID (<code>savedUID</code>)</td>
+        <td><code>chrome.storage.local</code></td>
+        <td>Saved on your device only, after a successful login. Cleared when you sign out.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="highlight-box">
+    Your User ID never leaves your device except when it is sent directly to the campus captive portal for authentication (see Section 3).
+  </div>
 
-  <h2>Contact</h2>
-  <p>For questions about this policy, contact the project maintainers.</p>
+  <!-- ─── 3. Network Requests ─── -->
+  <h2>3. Network Requests</h2>
+  <p>The extension makes HTTP requests to exactly <strong>one destination</strong>:</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Endpoint</th>
+        <th>Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>http://192.168.0.66:8090/login.xml</code></td>
+        <td>Submits your User ID to the Cyberoam/Sophos captive portal to authenticate you on the WiFi network.</td>
+      </tr>
+      <tr>
+        <td><code>http://192.168.0.66:8090/logout.xml</code></td>
+        <td>Signs you out of the captive portal when you click "Sign Out".</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>
+    Both endpoints are <strong>local-network addresses</strong> — they exist on the campus/hostel router and are not reachable from the public internet. No data is transmitted to any external or third-party server.
+  </p>
+  <div class="highlight-box">
+    <strong>Note on the password:</strong> On this network the login password is identical to the User ID.
+    The extension does not ask you for a separate password — it uses your User ID for both fields when submitting the login form.
+  </div>
+
+  <!-- ─── 4. Keep-Alive Behavior ─── -->
+  <h2>4. Keep-Alive Behavior</h2>
+  <p>
+    After a successful login, the extension creates a repeating alarm (via the <code>chrome.alarms</code> API) that
+    re-authenticates you every <strong>4 minutes</strong> to keep the portal session alive. This alarm:
+  </p>
+  <ul>
+    <li>Reads your saved User ID from local storage.</li>
+    <li>Sends it to the same <code>login.xml</code> endpoint listed above.</li>
+    <li>Is automatically cleared when you sign out or when a login attempt fails.</li>
+  </ul>
+
+  <!-- ─── 5. Browser Permissions ─── -->
+  <h2>5. Browser Permissions</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Permission</th>
+        <th>Why It Is Needed</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>storage</code></td>
+        <td>To save and retrieve your User ID locally so you don't have to re-enter it every time.</td>
+      </tr>
+      <tr>
+        <td><code>alarms</code></td>
+        <td>To schedule the periodic keep-alive re-authentication that keeps your WiFi session from expiring.</td>
+      </tr>
+      <tr>
+        <td>Host: <code>http://192.168.0.66/*</code></td>
+        <td>To allow the extension to send login/logout requests to the campus captive portal.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ─── 6. Third-Party Sharing ─── -->
+  <h2>6. Third-Party Sharing</h2>
+  <p>
+    <strong>None.</strong> Your data is never shared with, sold to, or transmitted to any third party.
+    The only destination for your User ID is the local-network captive portal operated by your campus.
+  </p>
+
+  <!-- ─── 7. What We Do Not Do ─── -->
+  <h2>7. What We Do Not Do</h2>
+  <ul>
+    <li>We do <strong>not</strong> collect or store browsing history.</li>
+    <li>We do <strong>not</strong> inject scripts into any web page.</li>
+    <li>We do <strong>not</strong> use analytics, tracking pixels, or telemetry of any kind.</li>
+    <li>We do <strong>not</strong> read or modify your cookies.</li>
+    <li>We do <strong>not</strong> access any website content beyond the captive portal endpoint.</li>
+    <li>We do <strong>not</strong> communicate with any server other than <code>192.168.0.66</code>.</li>
+  </ul>
+
+  <!-- ─── 8. Data Deletion ─── -->
+  <h2>8. Data Deletion</h2>
+  <p>You can remove your stored User ID at any time by:</p>
+  <ul>
+    <li>Clicking <strong>Sign Out</strong> in the extension popup, or</li>
+    <li>Uninstalling the extension (this automatically clears all extension storage).</li>
+  </ul>
+
+  <!-- ─── 9. Changes to This Policy ─── -->
+  <h2>9. Changes to This Policy</h2>
+  <p>
+    If we make material changes to this policy, we will update the "Last updated" date at the top.
+    Since the extension is distributed directly (not via a store), updates will be reflected in the project repository.
+  </p>
+
+  <!-- ─── 10. Contact ─── -->
+  <h2>10. Contact</h2>
+  <p>
+    Questions or concerns about this policy? Reach out to the maintainers:
+  </p>
+  <ul>
+    <li><a href="https://www.linkedin.com/in/dhananjay-dev-204b72292/" target="_blank" rel="noreferrer">Dhananjay Dev</a></li>
+    <li><a href="https://www.linkedin.com/in/arjun-satheesh-382377390/" target="_blank" rel="noreferrer">Arjun Satheesh</a></li>
+  </ul>
+
+  <footer>
+    SkipHostelWifi &mdash; built by Dhananjay Dev &amp; Arjun Satheesh.
+  </footer>
+
 </body>
 </html>
